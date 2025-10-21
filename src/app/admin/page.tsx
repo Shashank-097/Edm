@@ -178,7 +178,7 @@ export default function AdminDashboard() {
       <aside className="w-64 bg-white dark:bg-gray-800 p-6 flex flex-col shadow-lg relative">
         <h1 className="text-2xl font-bold mb-8">Admin Panel</h1>
         <nav className="flex flex-col gap-2">
-          {['new', 'saved'].map((tab) => {
+          {(['new', 'saved'] as const).map((tab) => {
             const isActive = activeTab === tab;
             const label = tab === 'new' ? 'New Post' : 'Saved Posts';
             return (
