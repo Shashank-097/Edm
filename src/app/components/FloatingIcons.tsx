@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { Rocket, Search, Share2, Palette, MonitorSmartphone, Zap } from './icon'
+// ✅ Updated import from lib folder
+import { Rocket, Search, Share2, Palette, MonitorSmartphone, Zap } from '@/lib/icons'
 
 const icons = [
   { Icon: Rocket, size: 48, x: 100, y: 100 },
@@ -77,7 +78,6 @@ export default function FloatingIcons() {
   }, [])
 
   return (
-    // ✅ changed from fixed → absolute, and lowered z-index
     <div className="pointer-events-none absolute inset-0 z-0">
       {icons.map(({ Icon, size }, i) => (
         <Icon
