@@ -68,8 +68,24 @@ export default function BlogListPage() {
   const otherCategories = ALL_CATEGORIES.slice(4);
 
   useEffect(() => {
-    const postsStr = typeof window !== 'undefined' && localStorage.getItem('blog-posts');
-    if (postsStr) setPosts(JSON.parse(postsStr));
+    if (typeof window !== 'undefined') {
+      const postsStr = localStorage.getItem('blog-posts');
+      if (postsStr) {
+        try {
+          const parsed: Post[] = JSON.parse(postsStr).map((p) => ({
+            ...p,
+            media: {
+              images: p.media?.images ?? [],
+              video: p.media?.video,
+              audio: p.media?.audio
+            }
+          }));
+          setPosts(parsed);
+        } catch (e) {
+          console.error('Failed to parse blog posts from localStorage:', e);
+        }
+      }
+    }
   }, []);
 
   const toggleExpand = (idx: number) => {
@@ -78,11 +94,11 @@ export default function BlogListPage() {
 
   const visiblePosts =
     selectedCategory === "All"
-      ? posts.slice().sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime())
+      ? posts.slice().sort((a, b) => new Date(b.date ?? '').getTime() - new Date(a.date ?? '').getTime())
       : posts
           .filter(post => post.category === selectedCategory)
           .slice()
-          .sort((a, b) => new Date(b.date || '').getTime() - new Date(a.date || '').getTime());
+          .sort((a, b) => new Date(b.date ?? '').getTime() - new Date(a.date ?? '').getTime());
 
   const totalSlides = Math.ceil(visiblePosts.length / POSTS_PER_SLIDE);
   const currentPosts = visiblePosts.slice(currentSlide * POSTS_PER_SLIDE, (currentSlide + 1) * POSTS_PER_SLIDE);
@@ -90,8 +106,7 @@ export default function BlogListPage() {
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
     setCurrentSlide(0);
-    if (category === "Other") setShowAllCategories(true);
-    else setShowAllCategories(false);
+    setShowAllCategories(category === "Other");
   };
 
   return (
@@ -125,6 +140,7 @@ export default function BlogListPage() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
+              aria-pressed={selectedCategory === category}
             >
               {category}
             </motion.button>
@@ -137,6 +153,7 @@ export default function BlogListPage() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
+              aria-label="Show other categories"
             >
               Other
             </motion.button>
@@ -150,6 +167,8 @@ export default function BlogListPage() {
             animate={{ opacity: 1, height: "auto" }}
             transition={{ duration: 0.3 }}
             className="max-w-4xl mx-auto px-4 py-4 mb-6 rounded-xl bg-[#112136] border border-[#00B7FF]/50 flex flex-wrap gap-3 justify-center"
+            role="region"
+            aria-live="polite"
           >
             {otherCategories.map(category => (
               <motion.button
@@ -163,6 +182,7 @@ export default function BlogListPage() {
                 whileTap={{ scale: 0.95 }}
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: "spring", stiffness: 300 }}
+                aria-pressed={selectedCategory === category}
               >
                 {category}
               </motion.button>
@@ -190,6 +210,8 @@ export default function BlogListPage() {
               const contentToShow = isExpanded ? post.content : truncateWords(post.content, MAX_WORDS);
               const hasMore = post.content.split(/\s+/).length > MAX_WORDS;
 
+              const images = post.media?.images ?? [];
+
               return (
                 <motion.article
                   key={globalIdx}
@@ -199,16 +221,19 @@ export default function BlogListPage() {
                   whileHover={{ scale: 1.05, boxShadow: '0 12px 24px rgba(0, 183, 255, 0.6)' }}
                   transition={{ duration: 0.4, delay: idx * 0.1 }}
                   onClick={() => toggleExpand(globalIdx)}
+                  tabIndex={0}
+                  aria-expanded={isExpanded}
                 >
                   <div className="flex flex-col md:flex-row gap-5 items-center md:items-start">
-                    {post.media?.images?.length > 0 && (
+                    {images.length > 0 && (
                       <div className="relative rounded-xl overflow-hidden shadow-lg max-w-xs mb-4 md:mb-0 md:mr-5 w-full md:w-auto">
                         <Image
-                          src={post.media.images[0]}
+                          src={images[0]}
                           alt={`${post.title} cover`}
                           className="object-cover w-full h-48 transition group-hover:scale-105"
                           width={400}
                           height={192}
+                          priority={idx < POSTS_PER_SLIDE} // prioritize images on first slide for better LCP
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-end p-3 opacity-0 group-hover:opacity-100 transition">
                           <span className="text-white font-semibold text-sm">Read More</span>
@@ -230,6 +255,7 @@ export default function BlogListPage() {
                         <button
                           onClick={(e) => { e.stopPropagation(); toggleExpand(globalIdx); }}
                           className="mt-2 text-sm font-semibold text-[#00B7FF] hover:underline"
+                          aria-label={isExpanded ? "Read less" : "Read more"}
                         >
                           {isExpanded ? 'Read Less' : 'Read More'}
                         </button>
@@ -243,9 +269,9 @@ export default function BlogListPage() {
                       )}
                     </div>
                   </div>
-                  {post.media?.images?.length > 1 && (
+                  {images.length > 1 && (
                     <div className="flex gap-2 mt-4 overflow-x-auto">
-                      {post.media.images.slice(1).map((img, i) => (
+                      {images.slice(1).map((img, i) => (
                         <Image
                           key={i}
                           src={img}
@@ -254,6 +280,7 @@ export default function BlogListPage() {
                           width={80}
                           height={80}
                           style={{ minWidth: 80 }}
+                          priority={false}
                         />
                       ))}
                     </div>
@@ -271,16 +298,18 @@ export default function BlogListPage() {
               onClick={() => setCurrentSlide(Math.max(currentSlide - 1, 0))}
               disabled={currentSlide === 0}
               className="px-6 py-2 bg-[#112136] text-[#00B7FF] rounded-full font-semibold hover:bg-[#0e1633] disabled:opacity-40 transition"
+              aria-label="Previous page"
             >
               Previous
             </button>
-            <span className="text-gray-400 font-semibold self-center">
+            <span className="text-gray-400 font-semibold self-center" aria-live="polite" aria-atomic="true">
               {currentSlide + 1} / {totalSlides}
             </span>
             <button
               onClick={() => setCurrentSlide(Math.min(currentSlide + 1, totalSlides - 1))}
               disabled={currentSlide === totalSlides - 1}
               className="px-6 py-2 bg-[#112136] text-[#00B7FF] rounded-full font-semibold hover:bg-[#0e1633] disabled:opacity-40 transition"
+              aria-label="Next page"
             >
               Next
             </button>
