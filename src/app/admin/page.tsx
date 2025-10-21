@@ -41,7 +41,8 @@ export default function AdminDashboard() {
     const postsStr = localStorage.getItem('blog-posts');
     if (postsStr) {
       try {
-        const parsed: Post[] = JSON.parse(postsStr).map((p: any) => ({
+        type RawPost = Omit<Post, 'media'> & { media?: Media };
+        const parsed: Post[] = JSON.parse(postsStr).map((p: RawPost) => ({
           ...p,
           media: p.media || { images: [], videos: [] },
         }));
