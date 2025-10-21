@@ -16,8 +16,8 @@ export default function ChatbotToggle() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const whatsappLink = "https://wa.me/919876543210"; // ✅ Replace with your WhatsApp number
-  const emailLink = "mailto:info@edmcompany.com";    // ✅ Replace with your company email
+  const whatsappLink = "https://wa.me/8954980226"; // ✅ Replace with your WhatsApp number
+  const emailLink = "connectatedm@gmail.com";    // ✅ Replace with your company email
   // const phoneLink = "tel:+919876543210";          // ✅ Uncomment to add phone option
 
   // Close menu if clicked outside
