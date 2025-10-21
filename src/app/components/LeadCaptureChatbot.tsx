@@ -4,13 +4,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconX } from "@tabler/icons-react";
 
-type ChatStep =
-  | "greet"
-  | "askName"
-  | "askService"
-  | "askContact"
-  | "askEmail"
-  | "thankYou";
+/** Strict tuple and type for step */
+const chatSteps = [
+  "greet",
+  "askName",
+  "askService",
+  "askContact",
+  "askEmail",
+  "thankYou",
+] as const;
+type ChatStep = typeof chatSteps[number];
 
 type LeadCaptureChatbotProps = {
   onClose?: () => void;
@@ -24,22 +27,21 @@ const services = [
   "Website Development",
   "Local SEO",
   "Multiple Services",
-];
+] as const;
 
 export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps) {
   const [step, setStep] = useState<ChatStep>("greet");
-  const [name, setName] = useState("");
-  const [service, setService] = useState("");
-  const [contact, setContact] = useState("");
-  const [email, setEmail] = useState("");
-  const [userInput, setUserInput] = useState("");
+  const [name, setName] = useState<string>("");
+  const [service, setService] = useState<string>("");
+  const [contact, setContact] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [userInput, setUserInput] = useState<string>("");
 
   const [messages, setMessages] = useState<{ from: "bot" | "user"; text: string }[]>([
     { from: "bot", text: "👋 Hey there! Welcome to EDM – Era of Digital Marketing." },
     { from: "bot", text: "Can I know your name to get started?" },
   ]);
 
-  // 👇 Ref for auto-scroll
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         break;
 
       case "askService":
-        if (services.includes(text)) {
+        if ((services as readonly string[]).includes(text)) {
           setService(text);
           addMessage("bot", `Awesome! You’re interested in ${text}. Could you share your contact number?`);
           setStep("askContact");
@@ -72,7 +74,6 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         break;
 
       case "askContact":
-        // ✅ Strict 10-digit validation
         if (/^[6-9]\d{9}$/.test(text.trim())) {
           setContact(text);
           addMessage("bot", `Perfect! Lastly, could you share your email address?`);
@@ -93,7 +94,8 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         }
         break;
 
-      default:
+      case "thankYou":
+        // No further input expected
         break;
     }
   };
@@ -179,11 +181,9 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
           ))}
         </AnimatePresence>
 
-        {/* 👇 Auto-scroll anchor */}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input / Service Buttons */}
       <div className="border-t border-[#00b7ff30] bg-[#00142855] px-3 py-3">
         {step === "askService" ? (
           renderServiceButtons()
@@ -209,16 +209,18 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
                 px-4 py-2 text-sm border border-[#00B7FF40]
                 focus:outline-none focus:ring-2 focus:ring-[#00B7FF]
               "
+              aria-disabled={step === "thankYou"}
             />
             <button
               type="submit"
-              disabled={step === "thankYou"}
+              disabled={step === "thankYou" || !userInput.trim()}
               className="
                 px-4 py-2 text-sm font-semibold rounded-xl
                 bg-gradient-to-r from-[#00B7FF] to-[#0078d7]
                 shadow-lg hover:brightness-110
                 disabled:opacity-50 disabled:cursor-not-allowed
               "
+              aria-disabled={step === "thankYou" || !userInput.trim()}
             >
               Send
             </button>
