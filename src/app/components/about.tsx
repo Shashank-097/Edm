@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Instagram, Twitter, Linkedin } from "lucide-react";
+import Image from "next/image"; // Use Next.js Image
 
 const team = [
   {
@@ -96,10 +97,15 @@ export default function AboutSection() {
                 transition={{ duration: 0.3 }}
               >
                 <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#00B7FF] to-[#00d5ff] opacity-30 blur-2xl animate-pulse -z-10" />
-                <img
+                
+                {/* Use Next.js Image for optimization */}
+                <Image
                   src={photo}
                   alt={`${name} photo`}
                   className="w-52 h-52 rounded-full object-cover border-4 border-[#00B7FF] shadow-lg transition-transform duration-500 group-hover:scale-105 group-hover:shadow-[0_0_40px_rgba(0,183,255,0.8)]"
+                  width={208}
+                  height={208}
+                  priority
                 />
               </motion.div>
 

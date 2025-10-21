@@ -20,7 +20,7 @@ const ALL_CATEGORIES = [
   "Trends & Innovations",
   "Tips & Guides",
   "Agency Updates",
-  "Artificial Intelligence", // Added new category
+  "Artificial Intelligence",
 ];
 
 const MAX_WORDS = 100;
@@ -89,7 +89,7 @@ export default function BlogListPage() {
 
   const handleCategorySelect = (category: string) => {
     setSelectedCategory(category);
-    setCurrentSlide(0); // Reset to first slide
+    setCurrentSlide(0);
     if (category === "Other") setShowAllCategories(true);
     else setShowAllCategories(false);
   };

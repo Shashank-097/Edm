@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const clients = [
   { name: 'IIAD', logo: '/clients/IIAD.svg' },
@@ -14,6 +14,14 @@ const clients = [
 export default function ClientsLogoCarousel() {
   const marqueeClients = [...clients, ...clients, ...clients];
   const [isHovered, setIsHovered] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   return (
     <section className="bg-gradient-to-tr from-[#0A0F1C] via-[#112136] to-[#0A0F1C] py-16 px-6 overflow-hidden relative">
@@ -26,23 +34,22 @@ export default function ClientsLogoCarousel() {
         onMouseLeave={() => setIsHovered(false)}
       >
         <div
-          className={`flex gap-10 whitespace-nowrap py-6 ${isHovered ? 'overflow-x-auto cursor-grab paused' : 'animate-marquee'}`}
+          className={`flex gap-6 whitespace-nowrap py-6 ${isHovered ? 'overflow-x-auto cursor-grab paused' : !isMobile ? 'animate-marquee' : 'overflow-x-auto cursor-grab'}`}
           aria-label="Clients marquee carousel"
           tabIndex={0}
           style={{
-            scrollbarWidth: 'none', // For Firefox, hides scrollbar
-            msOverflowStyle: 'none', // For IE and Edge, hides scrollbar
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
           }}
         >
-          {marqueeClients.map((client, idx) => (
+          {(isMobile ? clients : marqueeClients).map((client, idx) => (
             <div
               key={`${client.name}-${idx}`}
-              className="inline-flex flex-col items-center justify-center bg-[#112136] rounded-xl p-6 shadow-md cursor-pointer transition-shadow duration-300 transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#00B7FF]/70 hover:shadow-xl hover:scale-105"
+              className="inline-flex flex-col items-center justify-center bg-[#112136] rounded-xl p-4 shadow-md transition-shadow duration-300 transform focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#00B7FF]/70 hover:shadow-xl hover:scale-105"
               style={{
-                minWidth: '18%',
-                minHeight: 160,
-                filter: 'drop-shadow(0 0 4px #0088FF66)',
-                transition: 'filter 0.3s ease',
+                minWidth: isMobile ? '40%' : '18%',
+                minHeight: isMobile ? 120 : 160,
+                filter: !isMobile ? 'drop-shadow(0 0 4px #0088FF66)' : 'none',
               }}
               tabIndex={0}
               aria-label={client.name}
@@ -51,8 +58,7 @@ export default function ClientsLogoCarousel() {
                 src={client.logo}
                 alt={client.name}
                 loading="lazy"
-                className="max-h-20 w-auto mb-4 border border-[#00B7FF]/40 rounded-md grayscale hover:grayscale-0 transition duration-500 ease-in-out filter drop-shadow-md"
-                style={{ transition: 'filter 0.5s ease' }}
+                className={`w-auto mb-4 ${isMobile ? 'max-h-16' : 'max-h-20'} border border-[#00B7FF]/40 rounded-md grayscale hover:grayscale-0 transition duration-500 ease-in-out filter`}
               />
               <span className="text-[#00B7FF] font-semibold text-sm tracking-wider select-none">
                 {client.name}
@@ -80,15 +86,8 @@ export default function ClientsLogoCarousel() {
         .cursor-grab {
           cursor: grab;
         }
-        /* Hide scrollbar for Chrome, Safari and Opera */
         .overflow-x-auto::-webkit-scrollbar {
           display: none;
-        }
-        @media (max-width: 768px) {
-          div[style*='minWidth'] {
-            min-width: 40% !important;
-            min-height: 120px !important;
-          }
         }
         div[tabindex='0']:focus-visible {
           outline-offset: 2px;

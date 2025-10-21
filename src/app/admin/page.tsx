@@ -23,21 +23,20 @@ function truncateWords(text: string, maxWords: number) {
 }
 
 export default function AdminDashboard() {
-  const [password, setPassword] = useState('');
-  const [authorized, setAuthorized] = useState(false);
+  const [password, setPassword] = useState<string>('');
+  const [authorized, setAuthorized] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'new' | 'saved'>('new');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [author, setAuthor] = useState('');
-  const [date, setDate] = useState('');
-  const [category, setCategory] = useState('');
+  const [title, setTitle] = useState<string>('');
+  const [content, setContent] = useState<string>('');
+  const [author, setAuthor] = useState<string>('');
+  const [date, setDate] = useState<string>('');
+  const [category, setCategory] = useState<string>('');
   const [media, setMedia] = useState<Media>({ images: [], videos: [] });
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
-  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterCategory, setFilterCategory] = useState<string>('All');
   const [expandedPostIdx, setExpandedPostIdx] = useState<number | null>(null);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
-  // Load saved posts
   useEffect(() => {
     const postsStr = localStorage.getItem('blog-posts');
     if (postsStr) {
@@ -53,7 +52,6 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // ---------- Media Handlers ----------
   const handleImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
@@ -82,11 +80,17 @@ export default function AdminDashboard() {
     Promise.all(readers).then((results) => setMedia((m) => ({ ...m, videos: [...m.videos, ...results] })));
   };
 
-  // ---------- Save Blog ----------
   const saveBlog = () => {
     if (editingIdx !== null) {
       const updatedPosts = [...savedPosts];
-      updatedPosts[editingIdx] = { title, content, author, date: date || new Date().toISOString(), category, media };
+      updatedPosts[editingIdx] = {
+        title,
+        content,
+        author,
+        date: date || new Date().toISOString(),
+        category,
+        media,
+      };
       setSavedPosts(updatedPosts);
       localStorage.setItem('blog-posts', JSON.stringify(updatedPosts));
       alert('Post updated successfully!');
@@ -99,14 +103,13 @@ export default function AdminDashboard() {
     }
   };
 
-  // ---------- Auth ----------
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (password === ADMIN_PASSWORD) setAuthorized(true);
     else alert('Wrong password!');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!title || !content || !author || !category) return alert('Please fill all fields!');
     saveBlog();
@@ -140,7 +143,6 @@ export default function AdminDashboard() {
     setActiveTab('new');
   };
 
-  // ---------- Filters ----------
   const categories = Array.from(new Set(savedPosts.map((post) => post.category))).sort();
   const categoriesWithAll = ['All', ...categories];
 
@@ -149,10 +151,10 @@ export default function AdminDashboard() {
       .slice()
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  const getContentToShow = (content: string, idx: number) => (expandedPostIdx === idx ? content : truncateWords(content, MAX_WORDS_PREVIEW));
+  const getContentToShow = (content: string, idx: number) =>
+    expandedPostIdx === idx ? content : truncateWords(content, MAX_WORDS_PREVIEW);
   const toggleExpand = (idx: number) => setExpandedPostIdx((prev) => (prev === idx ? null : idx));
 
-  // ---------- Login Screen ----------
   if (!authorized)
     return (
       <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-6">
@@ -170,10 +172,8 @@ export default function AdminDashboard() {
       </main>
     );
 
-  // ---------- Main Dashboard ----------
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      {/* Sidebar */}
       <aside className="w-64 bg-white dark:bg-gray-800 p-6 flex flex-col shadow-lg relative">
         <h1 className="text-2xl font-bold mb-8">Admin Panel</h1>
         <nav className="flex flex-col gap-2">
@@ -202,68 +202,152 @@ export default function AdminDashboard() {
         </button>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 p-8 overflow-y-auto">
         <AnimatePresence mode="wait">
           {activeTab === 'new' ? (
-            // New Blog Form
             <motion.div key="new" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <h2 className="text-3xl font-semibold mb-6">{editingIdx !== null ? 'Edit Blog' : 'Create New Blog'}</h2>
               <form onSubmit={handleSubmit} className="space-y-4 bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md">
-                <input type="text" placeholder="Blog Title" value={title} onChange={(e) => setTitle(e.target.value)} required className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                <input type="text" placeholder="Author" value={author} onChange={(e) => setAuthor(e.target.value)} required className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-                <select value={category} onChange={(e) => setCategory(e.target.value)} required className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                  <option value="" disabled>Choose Category</option>
-                  {['Agency Updates','Analytics & Tools','Artificial Intelligence','Branding & Design','Business Growth','Case Studies','Content Marketing','Digital Marketing','Google Ads','Performance Marketing','SEO','Social Media Marketing','Tips & Guides','Trends & Innovations','Website Development'].map((cat) => <option key={cat}>{cat}</option>)}
+                <input
+                  type="text"
+                  placeholder="Blog Title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <input
+                  type="text"
+                  placeholder="Author"
+                  value={author}
+                  onChange={(e) => setAuthor(e.target.value)}
+                  required
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  required
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                >
+                  <option value="" disabled>
+                    Choose Category
+                  </option>
+                  {[
+                    'Agency Updates',
+                    'Analytics & Tools',
+                    'Artificial Intelligence',
+                    'Branding & Design',
+                    'Business Growth',
+                    'Case Studies',
+                    'Content Marketing',
+                    'Digital Marketing',
+                    'Google Ads',
+                    'Performance Marketing',
+                    'SEO',
+                    'Social Media Marketing',
+                    'Tips & Guides',
+                    'Trends & Innovations',
+                    'Website Development',
+                  ].map((cat) => (
+                    <option key={cat}>{cat}</option>
+                  ))}
                 </select>
-                <textarea placeholder="Blog content..." value={content} onChange={(e) => setContent(e.target.value)} required rows={6} className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none" />
+                <textarea
+                  placeholder="Blog content..."
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  required
+                  rows={6}
+                  className="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition resize-none"
+                />
 
-                {/* Media Upload */}
                 <div className="flex flex-col gap-4">
-                  {/* Images */}
                   <div>
                     <label className="block mb-2 font-medium">Images</label>
-                    <div className="flex flex-wrap gap-3 p-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-blue-500 transition" onClick={() => document.getElementById('image-input')?.click()}>
+                    <div
+                      className="flex flex-wrap gap-3 p-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-blue-500 transition"
+                      onClick={() => document.getElementById('image-input')?.click()}
+                    >
                       {media.images.map((img, i) => (
                         <div key={i} className="relative w-28 h-28 rounded-lg overflow-hidden shadow-sm group">
-                          <Image src={img} alt={`Image ${i+1}`} fill className="object-cover" />
-                          <button onClick={(e) => { e.stopPropagation(); setMedia((m) => ({ ...m, images: m.images.filter((_, idx) => idx !== i) })); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full px-1 py-0.5 opacity-0 group-hover:opacity-100 transition">×</button>
+                          <Image src={img} alt={`Image ${i + 1}`} fill className="object-cover" />
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMedia((m) => ({ ...m, images: m.images.filter((_, idx) => idx !== i) }));
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full px-1 py-0.5 opacity-0 group-hover:opacity-100 transition"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
-                      <div className="flex items-center justify-center w-28 h-28 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-lg">+ Add</div>
+                      <div className="flex items-center justify-center w-28 h-28 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-lg">
+                        + Add
+                      </div>
                     </div>
                     <input id="image-input" type="file" accept="image/*" multiple className="hidden" onChange={handleImagesChange} />
                   </div>
 
-                  {/* Videos */}
                   <div>
                     <label className="block mb-2 font-medium">Videos</label>
-                    <div className="flex flex-wrap gap-3 p-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-blue-500 transition" onClick={() => document.getElementById('video-input')?.click()}>
+                    <div
+                      className="flex flex-wrap gap-3 p-3 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg cursor-pointer hover:border-blue-500 transition"
+                      onClick={() => document.getElementById('video-input')?.click()}
+                    >
                       {media.videos.map((vid, i) => (
                         <div key={i} className="relative w-40 h-24 rounded-lg overflow-hidden shadow-sm group">
                           <video src={vid} className="w-full h-full object-cover" />
-                          <button onClick={(e) => { e.stopPropagation(); setMedia((m) => ({ ...m, videos: m.videos.filter((_, idx) => idx !== i) })); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full px-1 py-0.5 opacity-0 group-hover:opacity-100 transition">×</button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMedia((m) => ({ ...m, videos: m.videos.filter((_, idx) => idx !== i) }));
+                            }}
+                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full px-1 py-0.5 opacity-0 group-hover:opacity-100 transition"
+                          >
+                            ×
+                          </button>
                         </div>
                       ))}
-                      <div className="flex items-center justify-center w-40 h-24 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-lg">+ Add</div>
+                      <div className="flex items-center justify-center w-40 h-24 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-lg">
+                        + Add
+                      </div>
                     </div>
                     <input id="video-input" type="file" accept="video/*" multiple className="hidden" onChange={handleVideosChange} />
                   </div>
                 </div>
 
-                <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">{editingIdx !== null ? 'Update Blog' : 'Save Blog'}</button>
+                <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition">
+                  {editingIdx !== null ? 'Update Blog' : 'Save Blog'}
+                </button>
               </form>
             </motion.div>
           ) : (
-            // Saved Posts
             <motion.div key="saved" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}>
               <h2 className="text-3xl font-semibold mb-4">Saved Posts</h2>
               {savedPosts.length > 0 && (
                 <div className="mb-4">
                   <label className="block mb-2 font-medium">Filter by Category:</label>
-                  <select value={filterCategory} onChange={(e) => { setFilterCategory(e.target.value); setExpandedPostIdx(null); }} className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                    {categoriesWithAll.map((cat) => (<option key={cat} value={cat}>{cat}</option>))}
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => {
+                      setFilterCategory(e.target.value);
+                      setExpandedPostIdx(null);
+                    }}
+                    className="p-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+                  >
+                    {categoriesWithAll.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -283,11 +367,10 @@ export default function AdminDashboard() {
                         <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Category: {post.category}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{new Date(post.date).toLocaleDateString()}</p>
 
-                        {/* Media */}
                         <div className="flex flex-wrap gap-2 mb-3">
                           {(post.media.images || []).map((img, i) => (
                             <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden shadow-sm">
-                              <Image src={img} alt={`Post ${post.title} image ${i+1}`} fill className="object-cover" />
+                              <Image src={img} alt={`Post ${post.title} image ${i + 1}`} fill className="object-cover" />
                             </div>
                           ))}
                           {(post.media.videos || []).map((vid, i) => (
@@ -297,12 +380,21 @@ export default function AdminDashboard() {
 
                         <p className="text-gray-700 dark:text-gray-300">{contentToShow}</p>
                         {wordCount > MAX_WORDS_PREVIEW && (
-                          <button className="text-blue-600 dark:text-blue-400 mt-1 text-sm font-medium" onClick={() => toggleExpand(idx)}>{isExpanded ? 'Show Less' : 'Read More'}</button>
+                          <button
+                            className="text-blue-600 dark:text-blue-400 mt-1 text-sm font-medium"
+                            onClick={() => toggleExpand(idx)}
+                          >
+                            {isExpanded ? 'Show Less' : 'Read More'}
+                          </button>
                         )}
 
                         <div className="flex justify-end mt-4 gap-3">
-                          <button onClick={() => handleEdit(idx)} className="text-blue-600 hover:text-blue-700 font-medium">Edit</button>
-                          <button onClick={() => handleDelete(idx)} className="text-red-600 hover:text-red-700 font-medium">Delete</button>
+                          <button onClick={() => handleEdit(idx)} className="text-blue-600 hover:text-blue-700 font-medium">
+                            Edit
+                          </button>
+                          <button onClick={() => handleDelete(idx)} className="text-red-600 hover:text-red-700 font-medium">
+                            Delete
+                          </button>
                         </div>
                       </motion.div>
                     );

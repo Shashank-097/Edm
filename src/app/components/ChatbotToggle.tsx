@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   IconMessageCircle,
   IconMail,
-  IconPhone,
   IconBrandWhatsapp,
   IconX,
 } from "@tabler/icons-react";
@@ -16,17 +15,13 @@ export default function ChatbotToggle() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const whatsappLink = "https://wa.me/8954980226"; // ✅ Replace with your WhatsApp number
-  const emailLink = "connectatedm@gmail.com";    // ✅ Replace with your company email
-  // const phoneLink = "tel:+919876543210";          // ✅ Uncomment to add phone option
+  const whatsappLink = "https://wa.me/8954980226";
+  const emailLink = "mailto:connectatedm@gmail.com"; // ✅ Corrected
 
   // Close menu if clicked outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target as Node)
-      ) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false);
       }
     };
@@ -41,7 +36,7 @@ export default function ChatbotToggle() {
 
   return (
     <>
-      {/* 🟢 Chatbot Panel */}
+      {/* Chatbot Panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -58,7 +53,7 @@ export default function ChatbotToggle() {
         )}
       </AnimatePresence>
 
-      {/* 💬 Floating Contact Menu */}
+      {/* Floating Contact Menu */}
       <AnimatePresence>
         {showMenu && !isOpen && (
           <motion.div
@@ -92,18 +87,7 @@ export default function ChatbotToggle() {
               <IconMail size={20} /> Email
             </motion.a>
 
-            {/* Optional Phone (commented out) */}
-            {/*
-            <motion.a
-              href={phoneLink}
-              whileHover={{ scale: 1.05, x: 5 }}
-              className="flex items-center gap-2 text-blue-300 font-medium text-sm transition"
-            >
-              <IconPhone size={20} /> Call
-            </motion.a>
-            */}
-
-            {/* EDM Chatbot Button */}
+            {/* Chatbot Button */}
             <motion.button
               onClick={handleChatClick}
               whileHover={{ scale: 1.05 }}
@@ -119,7 +103,7 @@ export default function ChatbotToggle() {
         )}
       </AnimatePresence>
 
-      {/* 🔵 Floating Main Chat Button */}
+      {/* Floating Main Chat Button */}
       <motion.button
         onClick={() => {
           if (isOpen) setIsOpen(false);
@@ -140,11 +124,7 @@ export default function ChatbotToggle() {
                    focus:outline-none focus:ring-4 focus:ring-[#00b7ff90]"
         style={{ backdropFilter: "blur(10px)" }}
       >
-        {isOpen || showMenu ? (
-          <IconX size={28} />
-        ) : (
-          <IconMessageCircle size={30} />
-        )}
+        {isOpen || showMenu ? <IconX size={28} /> : <IconMessageCircle size={30} />}
       </motion.button>
     </>
   );
