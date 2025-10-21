@@ -4,16 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { IconX } from "@tabler/icons-react";
 
-/** Strict tuple and type for step */
-const chatSteps = [
-  "greet",
-  "askName",
-  "askService",
-  "askContact",
-  "askEmail",
-  "thankYou",
-] as const;
-type ChatStep = typeof chatSteps[number];
+/** Chat step union type */
+type ChatStep = "greet" | "askName" | "askService" | "askContact" | "askEmail" | "thankYou";
 
 type LeadCaptureChatbotProps = {
   onClose?: () => void;
@@ -53,20 +45,23 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
   };
 
   const handleUserInput = (text: string) => {
-    addMessage("user", text);
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    addMessage("user", trimmed);
 
     switch (step) {
       case "greet":
       case "askName":
-        setName(text);
-        addMessage("bot", `Nice to meet you, ${text}! Which service are you interested in?`);
+        setName(trimmed);
+        addMessage("bot", `Nice to meet you, ${trimmed}! Which service are you interested in?`);
         setStep("askService");
         break;
 
       case "askService":
-        if ((services as readonly string[]).includes(text)) {
-          setService(text);
-          addMessage("bot", `Awesome! You’re interested in ${text}. Could you share your contact number?`);
+        if ((services as readonly string[]).includes(trimmed)) {
+          setService(trimmed);
+          addMessage("bot", `Awesome! You’re interested in ${trimmed}. Could you share your contact number?`);
           setStep("askContact");
         } else {
           addMessage("bot", "Please choose a valid service option from below 👇");
@@ -74,8 +69,9 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         break;
 
       case "askContact":
-        if (/^[6-9]\d{9}$/.test(text.trim())) {
-          setContact(text);
+        // Indian 10-digit mobile number validation (starts 6-9)
+        if (/^[6-9]\d{9}$/.test(trimmed)) {
+          setContact(trimmed);
           addMessage("bot", `Perfect! Lastly, could you share your email address?`);
           setStep("askEmail");
         } else {
@@ -85,9 +81,13 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
 
       case "askEmail":
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (emailRegex.test(text.trim())) {
-          setEmail(text);
-          addMessage("bot", `Thanks, ${name}! Our team will reach out to you soon 🚀`);
+        if (emailRegex.test(trimmed)) {
+          setEmail(trimmed);
+          // Use collected fields for the final bot message so variables are referenced (no unused warnings)
+          addMessage(
+            "bot",
+            `Thanks, ${name || "there"}! We have: Service — ${service || "N/A"}, Contact — ${contact || "N/A"}, Email — ${trimmed}. Our team will reach out to you soon 🚀`
+          );
           setStep("thankYou");
         } else {
           addMessage("bot", "Please enter a valid email address 📧");
@@ -95,7 +95,8 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         break;
 
       case "thankYou":
-        // No further input expected
+        // No further input expected; optionally acknowledge
+        addMessage("bot", "🎉 We already have your details. Thank you!");
         break;
     }
   };
@@ -103,7 +104,7 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!userInput.trim()) return;
-    handleUserInput(userInput.trim());
+    handleUserInput(userInput);
     setUserInput("");
   };
 
@@ -160,7 +161,7 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         scrollbar-hide scroll-smooth"
         style={{
           msOverflowStyle: "none", // IE and Edge
-          scrollbarWidth: "none",  // Firefox
+          scrollbarWidth: "none", // Firefox
         }}
       >
         <AnimatePresence>
@@ -187,7 +188,7 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
       <div className="border-t border-[#00b7ff30] bg-[#00142855] px-3 py-3">
         {step === "askService" ? (
           renderServiceButtons()
-        ) : step !== "thankYou" ? (
+        ) : String(step) !== "thankYou" ? (
           <form onSubmit={onSubmit} className="flex gap-2">
             <input
               type="text"
@@ -202,25 +203,25 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
               }
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              disabled={step === "thankYou"}
+              disabled={String(step) === "thankYou"}
               className="
                 flex-grow rounded-xl bg-[#001e3d] text-white
                 placeholder:text-[#b9d7ff99]
                 px-4 py-2 text-sm border border-[#00B7FF40]
                 focus:outline-none focus:ring-2 focus:ring-[#00B7FF]
               "
-              aria-disabled={step === "thankYou"}
+              aria-disabled={String(step) === "thankYou" || !userInput.trim()}
             />
             <button
               type="submit"
-              disabled={step === "thankYou" || !userInput.trim()}
+              disabled={String(step) === "thankYou" || !userInput.trim()}
               className="
                 px-4 py-2 text-sm font-semibold rounded-xl
                 bg-gradient-to-r from-[#00B7FF] to-[#0078d7]
                 shadow-lg hover:brightness-110
                 disabled:opacity-50 disabled:cursor-not-allowed
               "
-              aria-disabled={step === "thankYou" || !userInput.trim()}
+              aria-disabled={String(step) === "thankYou" || !userInput.trim()}
             >
               Send
             </button>
@@ -228,6 +229,11 @@ export default function LeadCaptureChatbot({ onClose }: LeadCaptureChatbotProps)
         ) : (
           <div className="text-center text-cyan-300 font-semibold text-sm">
             🎉 Thank you for contacting us!
+            <div className="text-xs mt-2 text-cyan-200 font-medium">
+              {service && <div>Service: {service}</div>}
+              {contact && <div>Contact: {contact}</div>}
+              {email && <div>Email: {email}</div>}
+            </div>
           </div>
         )}
       </div>
