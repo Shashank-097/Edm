@@ -9,28 +9,29 @@ import {
   Variants,
 } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import FloatingIcons from '../../app/components/FloatingIcons' // ✅ Added import
+import FloatingIcons from '../../app/components/FloatingIcons'
 
-// Correct props type
 interface HeroSectionProps {
   heroRef: React.RefObject<HTMLDivElement | null>
   heroScroll: MotionValue<number>
 }
 
-// Cursor trail effect (desktop only)
+// ---------- Cursor Trail (Desktop Only) ----------
 function CursorTrail() {
   const [coords, setCoords] = useState({ x: -100, y: -100 })
+
   useEffect(() => {
-    const move = (e: MouseEvent) => setCoords({ x: e.clientX, y: e.clientY })
-    window.addEventListener('mousemove', move)
-    return () => window.removeEventListener('mousemove', move)
+    const handleMouseMove = (e: MouseEvent) => setCoords({ x: e.clientX, y: e.clientY })
+    window.addEventListener('mousemove', handleMouseMove)
+    return () => window.removeEventListener('mousemove', handleMouseMove)
   }, [])
+
   return (
     <motion.div
       style={{
         position: 'fixed',
-        left: 0,
         top: 0,
+        left: 0,
         x: coords.x - 24,
         y: coords.y - 24,
         pointerEvents: 'none',
@@ -44,22 +45,22 @@ function CursorTrail() {
   )
 }
 
-// Words and settings for headline
+// ---------- Headline Typing Words ----------
 const headlineWords = [
-  { text: "Transforming", neon: false, typing: false },
-  { text: "Ideas", neon: true, typing: true },
-  { text: "Into", neon: false, typing: false },
-  { text: "Digital", neon: true, typing: true },
-  { text: "Power", neon: true, typing: true },
+  { text: 'Transforming', neon: false, typing: false },
+  { text: 'Ideas', neon: true, typing: true },
+  { text: 'Into', neon: false, typing: false },
+  { text: 'Digital', neon: true, typing: true },
+  { text: 'Power', neon: true, typing: true },
 ]
 
-// Correct typing for variants objects:
+// ---------- Motion Variants ----------
 const typingContainer: Variants = {
   hidden: {},
   visible: (i = 1) => ({
     transition: {
-      staggerChildren: 0.14,
-      delayChildren: i * 0.75,
+      staggerChildren: 0.12,
+      delayChildren: i * 0.6,
     },
   }),
 }
@@ -73,7 +74,7 @@ const letterVariant: Variants = {
   },
 }
 
-// Typing letter animation for neon words
+// ---------- Typing Word Component ----------
 function TypingWord({ word, neon, delayIndex }: { word: string; neon: boolean; delayIndex: number }) {
   return (
     <motion.span
@@ -84,13 +85,8 @@ function TypingWord({ word, neon, delayIndex }: { word: string; neon: boolean; d
       custom={delayIndex}
       aria-label={word}
     >
-      {word.split('').map((char, index) => (
-        <motion.span
-          key={char + index}
-          variants={letterVariant}
-          aria-hidden="true"
-          className="inline-block"
-        >
+      {word.split('').map((char, idx) => (
+        <motion.span key={char + idx} variants={letterVariant} aria-hidden="true" className="inline-block">
           {char}
         </motion.span>
       ))}
@@ -98,10 +94,10 @@ function TypingWord({ word, neon, delayIndex }: { word: string; neon: boolean; d
   )
 }
 
+// ---------- Hero Section ----------
 export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
   const shouldReduceMotion = useReducedMotion()
 
-  // Scroll-based opacity and transform
   const heroOpacity = useTransform(heroScroll, [0, 0.3], [1, 0])
   const titleShiftY = useTransform(heroScroll, [0, 1], ['0px', '-40px'])
   const hintOpacity = useTransform(heroScroll, [0, 0.15], [1, 0])
@@ -115,38 +111,36 @@ export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
         ref={heroRef}
         className="relative h-screen flex flex-col items-center justify-center overflow-hidden bg-[#0A0F1C] text-white"
       >
-        {/* ✅ Floating Icons only inside Hero Section */}
+        {/* Floating Icons */}
         <FloatingIcons />
 
-        {/* Cursor trail */}
+        {/* Cursor Trail */}
         {!shouldReduceMotion && <CursorTrail />}
 
-        {/* Background glow circles */}
+        {/* Background Glows */}
         <div aria-hidden className="absolute inset-0 overflow-hidden">
           <div className="absolute top-0 left-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_top_left,_rgba(0,183,255,0.1),_transparent_70%)] rounded-full" />
           <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-[radial-gradient(circle_at_bottom_right,_rgba(0,117,255,0.12),_transparent_80%)] rounded-full" />
         </div>
 
-        {/* Hero content */}
+        {/* Hero Content */}
         <motion.div
           style={{ opacity: heroOpacity, translateY: titleShiftY }}
           className="relative z-10 flex flex-col items-center text-center px-6 max-w-4xl"
         >
-          {/* Headline with typing effect */}
+          {/* Headline */}
           <motion.h1
             aria-label="Transforming Ideas Into Digital Power"
             className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-tight relative"
           >
             {headlineWords.map(({ text, neon, typing }, idx) =>
-              typing ? (
-                <TypingWord key={text} word={text} neon={neon} delayIndex={idx} />
-              ) : (
+              typing ? <TypingWord key={text} word={text} neon={neon} delayIndex={idx} /> : (
                 <motion.span
                   key={text}
                   className="inline-block mx-2 text-white"
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: [0, 1, 0.75], y: 0 }}
-                  transition={{ delay: idx * 0.75, duration: 1.2, times: [0, 0.7, 1] }}
+                  transition={{ delay: idx * 0.7, duration: 1.2, times: [0, 0.7, 1] }}
                   aria-label={text}
                 >
                   {text}
@@ -166,13 +160,13 @@ export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
             {subText}
           </motion.p>
 
-          {/* Call to action */}
+          {/* Call-to-Action */}
           <motion.a
             href="contact"
             initial={{ opacity: 0, scale: 0.92 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, ease: 'easeOut', delay: 4.7 }}
-            whileHover={{ scale: 1.07, boxShadow: "0 0 24px #00b7ff" }}
+            whileHover={{ scale: 1.07, boxShadow: '0 0 24px #00b7ff' }}
             whileTap={{ scale: 0.94 }}
             className="group relative mt-10 inline-flex items-center justify-center px-8 py-3 rounded-full font-semibold text-[#cfefff] bg-[#0b1220]/65 border border-[#00b7ff]/20 backdrop-blur-md transition-all duration-500"
             aria-label="Book a Call"
@@ -183,7 +177,7 @@ export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
           </motion.a>
         </motion.div>
 
-        {/* Scroll hint */}
+        {/* Scroll Hint */}
         <motion.div
           style={{ opacity: hintOpacity }}
           className="absolute bottom-8 flex flex-col items-center gap-2 text-gray-400"
@@ -202,7 +196,7 @@ export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
           </motion.div>
         </motion.div>
 
-        {/* CSS styles */}
+        {/* Inline CSS */}
         <style jsx>{`
           @keyframes shimmerFlow {
             0% { background-position: 0% 50%; }
@@ -244,20 +238,10 @@ export default function HeroSection({ heroRef, heroScroll }: HeroSectionProps) {
                     drop-shadow(0 0 60px rgba(0, 128, 255, 0.8));
           }
           @keyframes reflectionSweep {
-            0% {
-              transform: translateX(-160%) skewX(-20deg);
-              opacity: 0;
-            }
-            20% {
-              opacity: 0.28;
-            }
-            50% {
-              opacity: 0.08;
-            }
-            100% {
-              transform: translateX(160%) skewX(-20deg);
-              opacity: 0;
-            }
+            0% { transform: translateX(-160%) skewX(-20deg); opacity: 0; }
+            20% { opacity: 0.28; }
+            50% { opacity: 0.08; }
+            100% { transform: translateX(160%) skewX(-20deg); opacity: 0; }
           }
           .reflection {
             position: absolute;

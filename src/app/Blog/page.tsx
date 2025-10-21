@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 
 const ALL_CATEGORIES = [
   "Digital Marketing",
@@ -40,8 +41,23 @@ function formatDate(dateStr: string) {
   }
 }
 
+type Media = {
+  images?: string[];
+  video?: string;
+  audio?: string;
+};
+
+type Post = {
+  title: string;
+  content: string;
+  category: string;
+  media?: Media;
+  date?: string;
+  author?: string;
+};
+
 export default function BlogListPage() {
-  const [posts, setPosts] = useState<{title: string, content: string, category: string, media?: any, date?: string, author?: string}[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [expandedPost, setExpandedPost] = useState<number | null>(null);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -187,10 +203,12 @@ export default function BlogListPage() {
                   <div className="flex flex-col md:flex-row gap-5 items-center md:items-start">
                     {post.media?.images?.length > 0 && (
                       <div className="relative rounded-xl overflow-hidden shadow-lg max-w-xs mb-4 md:mb-0 md:mr-5 w-full md:w-auto">
-                        <img
+                        <Image
                           src={post.media.images[0]}
-                          alt="cover"
+                          alt={`${post.title} cover`}
                           className="object-cover w-full h-48 transition group-hover:scale-105"
+                          width={400}
+                          height={192}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-end p-3 opacity-0 group-hover:opacity-100 transition">
                           <span className="text-white font-semibold text-sm">Read More</span>
@@ -228,11 +246,13 @@ export default function BlogListPage() {
                   {post.media?.images?.length > 1 && (
                     <div className="flex gap-2 mt-4 overflow-x-auto">
                       {post.media.images.slice(1).map((img, i) => (
-                        <img
+                        <Image
                           key={i}
                           src={img}
-                          alt=""
+                          alt={`${post.title} image ${i + 2}`}
                           className="max-h-20 rounded shadow"
+                          width={80}
+                          height={80}
                           style={{ minWidth: 80 }}
                         />
                       ))}
