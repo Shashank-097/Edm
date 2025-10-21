@@ -56,6 +56,8 @@ type Post = {
   author?: string;
 };
 
+type RawPost = Omit<Post, 'media'> & { media?: Media };
+
 export default function BlogListPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [expandedPost, setExpandedPost] = useState<number | null>(null);
@@ -72,12 +74,12 @@ export default function BlogListPage() {
       const postsStr = localStorage.getItem('blog-posts');
       if (postsStr) {
         try {
-          const parsed: Post[] = JSON.parse(postsStr).map((p) => ({
+          const parsed: Post[] = JSON.parse(postsStr).map((p: RawPost) => ({
             ...p,
             media: {
               images: p.media?.images ?? [],
               video: p.media?.video,
-              audio: p.media?.audio
+              audio: p.media?.audio,
             }
           }));
           setPosts(parsed);
@@ -193,6 +195,7 @@ export default function BlogListPage() {
               whileTap={{ scale: 0.95 }}
               whileHover={{ scale: 1.05 }}
               transition={{ type: "spring", stiffness: 300 }}
+              aria-label="Close other categories"
             >
               Close
             </motion.button>
@@ -233,7 +236,8 @@ export default function BlogListPage() {
                           className="object-cover w-full h-48 transition group-hover:scale-105"
                           width={400}
                           height={192}
-                          priority={idx < POSTS_PER_SLIDE} // prioritize images on first slide for better LCP
+                          priority={idx < POSTS_PER_SLIDE} // Prioritize images on first slide for better LCP
+                          loading={idx < POSTS_PER_SLIDE ? "eager" : "lazy"}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex justify-center items-end p-3 opacity-0 group-hover:opacity-100 transition">
                           <span className="text-white font-semibold text-sm">Read More</span>
@@ -281,6 +285,7 @@ export default function BlogListPage() {
                           height={80}
                           style={{ minWidth: 80 }}
                           priority={false}
+                          loading="lazy"
                         />
                       ))}
                     </div>
