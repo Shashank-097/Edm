@@ -21,8 +21,16 @@ async function getBlog(slug: string) {
   return all.find((b: any) => generateSlug(b.title ?? "") === slug) ?? null;
 }
 
-export default async function BlogSlugPage({ params }: { params: { slug: string } }) {
-  const blog = await getBlog(params.slug);
+/* ----------------------------------------------- */
+/*   FIX: Next.js 15 requires params to be Promise  */
+/* ----------------------------------------------- */
+export default async function BlogSlugPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params; // ✅ FIX — must await params
+  const blog = await getBlog(slug);
 
   if (!blog) {
     return (
@@ -66,9 +74,7 @@ export default async function BlogSlugPage({ params }: { params: { slug: string 
           />
         )}
 
-        {/* ------------------------------ */}
-        {/* PREMIUM TIPTAP CONTENT RENDER */}
-        {/* ------------------------------ */}
+        {/* TIPTAP CONTENT */}
         <article
           className="
             prose prose-lg prose-invert 
