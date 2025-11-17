@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://www.eraofdigitalmarketing.com/sitemap.xml

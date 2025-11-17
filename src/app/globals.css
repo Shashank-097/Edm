@@ -1,0 +1,186 @@
+/* ============================================================
+   🌟 Tailwind v3 — Correct Setup
+   ============================================================ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   🌗 Root Theme Variables
+   ============================================================ */
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+  --font-sans: 'Geist Sans', Arial, Helvetica, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0f1c;
+    --foreground: #e2e8f0;
+  }
+}
+
+/* ============================================================
+   🩵 Base Styles
+   ============================================================ */
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Hide scrollbars */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+/* ============================================================
+   💧 Animated Liquid Blobs
+   ============================================================ */
+.liquid-blob {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  border-radius: 40% 60% 70% 30% / 40% 30% 70% 60%;
+  filter: blur(100px);
+  opacity: 0.25;
+  animation: morph 12s ease-in-out infinite;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.blob1 {
+  top: -15%;
+  left: -10%;
+  background: #00b7ff;
+  animation-duration: 14s;
+  opacity: 0.3;
+}
+
+.blob2 {
+  bottom: -20%;
+  right: -15%;
+  background: #0075ff;
+  animation-duration: 16s;
+  opacity: 0.25;
+}
+
+.blob3 {
+  top: 30%;
+  right: 25%;
+  background: #00f5ff;
+  animation-duration: 20s;
+  opacity: 0.15;
+}
+
+@keyframes morph {
+  0% {
+    border-radius: 40% 60% 70% 30% / 40% 30% 70% 60%;
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    border-radius: 60% 40% 30% 70% / 60% 70% 30% 40%;
+    transform: translate(25px, -25px) scale(1.1);
+  }
+  100% {
+    border-radius: 40% 60% 70% 30% / 40% 30% 70% 60%;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+/* ============================================================
+   ✨ Smooth Animations Setup
+   ============================================================ */
+* {
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+}
+
+/* ============================================================
+   🌫️ Gradient Edges
+   ============================================================ */
+.fade-edge-left {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 120px;
+  background: linear-gradient(to right, #0b1728 40%, transparent 100%);
+}
+
+.fade-edge-right {
+  pointer-events: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 120px;
+  background: linear-gradient(to left, #0b1728 40%, transparent 100%);
+}
+
+/* ============================================================
+   💎 Neon Text Styles
+   ============================================================ */
+.neon-overlay {
+  font-weight: 800 !important;
+  letter-spacing: -0.02em;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+
+  background-image: linear-gradient(90deg, #00b7ff, #00d5ff, #007aff) !important;
+  background-size: 300% 100%;
+  animation: shimmerFlow 10s ease-in-out infinite;
+
+  filter: drop-shadow(0 0 8px rgba(0, 183, 255, 0.8))
+    drop-shadow(0 0 20px rgba(0, 183, 255, 0.5))
+    drop-shadow(0 0 40px rgba(0, 128, 255, 0.3));
+  position: relative;
+  z-index: 2;
+  mix-blend-mode: screen;
+}
+
+@keyframes shimmerFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.neon-overlay *,
+.neon-overlay span {
+  transition: none !important;
+}
+
+/* ============================================================
+   🌟 Neon Button
+   ============================================================ */
+.neon-button {
+  background: rgba(10, 15, 28, 0.6);
+  border: 1px solid rgba(0, 183, 255, 0.4);
+  color: #00b7ff;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 8px rgba(0, 183, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.neon-button:hover {
+  background: #00b7ff;
+  color: #000;
+  box-shadow: 0 0 25px #00b7ff;
+}
