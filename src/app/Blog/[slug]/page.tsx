@@ -2,6 +2,9 @@ import React from "react";
 import Image from "next/image";
 import DOMPurify from "isomorphic-dompurify";
 
+/* ------------------------------------------------------
+   SLUG GENERATOR
+------------------------------------------------------ */
 function generateSlug(title: string) {
   return title
     .toLowerCase()
@@ -13,23 +16,52 @@ function generateSlug(title: string) {
     .replace(/-+/g, "-");
 }
 
+/* ------------------------------------------------------
+   FETCH BLOG FROM BACKEND
+------------------------------------------------------ */
 async function getBlog(slug: string) {
   const base = process.env.NEXT_PUBLIC_API_URL;
-  const res = await fetch(`${base}/api/blogs`, { cache: "no-store" });
-  const all = await res.json();
 
-  return all.find((b: any) => generateSlug(b.title ?? "") === slug) ?? null;
+  if (!base) {
+    console.error("❌ NEXT_PUBLIC_API_URL is missing!");
+    return null;
+  }
+
+  try {
+    const res = await fetch(`${base}/api/blogs`, {
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    if (!res.ok) {
+      console.error("❌ Blog API failed:", res.status, res.statusText);
+      return null;
+    }
+
+    const all = await res.json();
+
+    if (!Array.isArray(all)) {
+      console.error("❌ API response is not an array:", all);
+      return null;
+    }
+
+    const blog = all.find((b: any) => generateSlug(b.title ?? "") === slug);
+
+    return blog ?? null;
+  } catch (err) {
+    console.error("🔥 ERROR Fetching Blog:", err);
+    return null;
+  }
 }
 
-/* ----------------------------------------------- */
-/*   FIX: Next.js 15 requires params to be Promise  */
-/* ----------------------------------------------- */
-export default async function BlogSlugPage({
-  params,
-}: {
+/* ------------------------------------------------------
+   FIX FOR NEXT.JS 15 — params must be Promise
+------------------------------------------------------ */
+export default async function BlogSlugPage(props: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params; // ✅ FIX — must await params
+  const { slug } = await props.params; // ✔️ Next.js 15 fix
+
   const blog = await getBlog(slug);
 
   if (!blog) {
@@ -45,17 +77,17 @@ export default async function BlogSlugPage({
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-white p-6">
       <div className="max-w-4xl mx-auto">
-
         {/* Title */}
         <h1 className="text-4xl font-bold mb-4 text-[#00B7FF]">{blog.title}</h1>
 
-        {/* Author + Date */}
+        {/* Author */}
         {blog.author && (
           <p className="text-gray-400">
             Written by: <span className="text-[#00B7FF]">{blog.author}</span>
           </p>
         )}
 
+        {/* Date */}
         {blog.date && (
           <p className="text-gray-400 mb-6">
             {new Date(blog.date).toLocaleDateString()}
@@ -69,20 +101,18 @@ export default async function BlogSlugPage({
             width={900}
             height={450}
             className="rounded-xl mb-8 shadow-lg"
-            alt="blog cover"
+            alt="Blog cover image"
             unoptimized
           />
         )}
 
-        {/* TIPTAP CONTENT */}
+        {/* TipTap Content */}
         <article
           className="
             prose prose-lg prose-invert 
             max-w-none 
             leading-relaxed
             prose-headings:text-[#00B7FF]
-            prose-h2:text-[#00B7FF]
-            prose-h3:text-[#00B7FF]
             prose-a:text-[#00B7FF] hover:prose-a:underline
             prose-strong:text-white
             prose-li:marker:text-[#00B7FF]
