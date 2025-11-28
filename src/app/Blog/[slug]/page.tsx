@@ -57,7 +57,7 @@ export default async function BlogSlugPage({
   params: Promise<{ slug: string }>;
 }) {
   // ⬇ THIS IS NOW VALID
-  const { slug } = await params;
+  const { slug } = params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base)
