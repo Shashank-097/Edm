@@ -1,5 +1,4 @@
 // app/Blog/[slug]/page.tsx
-
 export const dynamic = "force-dynamic";
 
 import React from "react";
@@ -50,24 +49,22 @@ function extractHeadings(html: string) {
   return items;
 }
 
-/* ---------------- PAGE COMPONENT (FINAL & CORRECT) ---------------- */
+/* ---------------- PAGE COMPONENT (CORRECT SIGNATURE) ---------------- */
 export default async function BlogSlugPage({
   params,
 }: {
-  params: Promise<{ slug: string }>;
+  params: { slug: string };
 }) {
-  // ⬇ THIS IS NOW VALID
+  // ⬇ THIS IS VALID NOW (param is NOT a Promise)
   const { slug } = params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
-  if (!base)
-    return <div className="p-10 text-white">API URL Missing</div>;
+  if (!base) return <div className="p-10 text-white">API URL Missing</div>;
 
   const blogData = await fetchPostBySlug(base, slug);
   const blog = Array.isArray(blogData) ? blogData[0] : blogData;
 
-  if (!blog)
-    return <div className="p-10 text-white">Blog Not Found</div>;
+  if (!blog) return <div className="p-10 text-white">Blog Not Found</div>;
 
   const images = blog.media?.images ?? blog.images ?? [];
 
