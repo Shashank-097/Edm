@@ -1,4 +1,6 @@
 // app/blog/[slug]/page.tsx
+export const dynamic = "force-dynamic";
+
 import React from "react";
 import Image from "next/image";
 import DOMPurify from "isomorphic-dompurify";
@@ -6,40 +8,45 @@ import DOMPurify from "isomorphic-dompurify";
 /* ---------------- FETCH ONE BLOG ---------------- */
 async function fetchPostBySlug(base: string, slug: string) {
   try {
+    // use no-store to always fetch fresh content on server
     const res = await fetch(`${base}/api/blogs/${encodeURIComponent(slug)}`, {
       cache: "no-store",
-      next: { revalidate: 0 },
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // provide a helpful error for logs
+      const text = await res.text().catch(() => "");
+      console.error("fetchPostBySlug failed:", res.status, text);
+      return null;
+    }
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error("fetchPostBySlug exception:", err);
     return null;
   }
 }
 
 /* ---------------- Calculate Reading Time ---------------- */
 function calcReadingTime(html: string) {
-  const text = html.replace(/<[^>]+>/g, " ");
-  const words = text.trim().split(/\s+/).length;
+  const text = (html || "").replace(/<[^>]+>/g, " ");
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.round(words / 200));
 }
 
-/* ---------------- Extract Headings (With Unique IDs) ---------------- */
+/* ---------------- Extract Headings (unique ids) ---------------- */
 function extractHeadings(html: string) {
   const headingRegex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
   const items: { level: number; text: string; id: string }[] = [];
   const usedIds = new Map<string, number>();
-  let match;
+  let match: RegExpExecArray | null;
 
   while ((match = headingRegex.exec(html))) {
     const level = Number(match[1]);
     const text = match[2].replace(/<[^>]+>/g, "");
     let id = text.toLowerCase().replace(/[^\w]+/g, "-") || "section";
 
-    // ensure unique ID
     if (usedIds.has(id)) {
-      const count = usedIds.get(id)! + 1;
+      const count = (usedIds.get(id) ?? 1) + 1;
       usedIds.set(id, count);
       id = `${id}-${count}`;
     } else {
@@ -52,9 +59,15 @@ function extractHeadings(html: string) {
   return items;
 }
 
-/* ---------------- PAGE COMPONENT (FIXED FOR NEXT.JS 15) ---------------- */
-export default async function BlogSlugPage(props: any) {
-  const { slug } =  props.params; // ✅ FIX HERE
+/* ---------------- PAGE COMPONENT ---------------- */
+export default async function BlogSlugPage(props: { params?: { slug?: string | string[] } }) {
+  // Do NOT await params — just read it
+  const rawSlug = props?.params?.slug;
+  const slug = Array.isArray(rawSlug) ? rawSlug[0] : rawSlug ?? "";
+
+  if (!slug) {
+    return <div className="p-10 text-white">Missing slug</div>;
+  }
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) {
@@ -65,31 +78,29 @@ export default async function BlogSlugPage(props: any) {
   const blog = Array.isArray(blogData) ? blogData[0] : blogData;
 
   if (!blog) {
+    // returning 404-like UI for safety
     return <div className="p-10 text-white">Blog Not Found</div>;
   }
 
-  const images = blog.media?.images ?? blog.images ?? [];
-  const sanitizedHTML = DOMPurify.sanitize(blog.content || "");
+  const images: string[] = blog.media?.images ?? blog.images ?? [];
+  const sanitizedHTML = DOMPurify.sanitize(blog.content ?? blog.contentPreview ?? "");
   const toc = extractHeadings(sanitizedHTML);
   const readingTime = calcReadingTime(sanitizedHTML);
 
-  /* ---------- Heading ID Injection (unique) ---------- */
+  /* inject unique ids into headings so TOC anchors work */
   const headingIdMap = new Map<string, number>();
-  const htmlWithIds = sanitizedHTML.replace(
+  const htmlWithIds = (sanitizedHTML || "").replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
-    (full, lvl, rest, inner) => {
-      let baseId =
-        inner
-          .replace(/<[^>]+>/g, "")
-          .toLowerCase()
-          .replace(/[^\w]+/g, "-") || "section";
+    (_full, lvl, rest, inner) => {
+      const baseId =
+        (inner || "").replace(/<[^>]+>/g, "").toLowerCase().replace(/[^\w]+/g, "-") || "section";
 
-      const count = headingIdMap.get(baseId) || 0;
+      const count = headingIdMap.get(baseId) ?? 0;
       const newCount = count + 1;
       headingIdMap.set(baseId, newCount);
 
       const id = newCount > 1 ? `${baseId}-${newCount}` : baseId;
-
+      // keep whatever attributes were on original heading (rest)
       return `<h${lvl} id="${id}" ${rest}>${inner}</h${lvl}>`;
     }
   );
@@ -97,26 +108,18 @@ export default async function BlogSlugPage(props: any) {
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-white p-6">
       <div className="max-w-4xl mx-auto">
+        <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">{blog.title}</h1>
 
-        {/* TITLE */}
-        <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">
-          {blog.title}
-        </h1>
-
-        {/* META INFO */}
         <div className="flex items-center gap-6 text-gray-400 mb-4">
           {blog.author && (
             <p>
               By <span className="text-[#00B7FF]">{blog.author}</span>
             </p>
           )}
-          {blog.date && (
-            <p>{new Date(blog.date).toLocaleDateString()}</p>
-          )}
+          {blog.date && <p>{new Date(blog.date).toLocaleDateString()}</p>}
           <p>⏱ {readingTime} min read</p>
         </div>
 
-        {/* COVER IMAGE */}
         {images.length > 0 && (
           <Image
             src={images[0]}
@@ -128,19 +131,13 @@ export default async function BlogSlugPage(props: any) {
           />
         )}
 
-        {/* TABLE OF CONTENTS */}
         {toc.length > 0 && (
           <aside className="mb-10 p-5 rounded-xl bg-[#112136]/40 border border-[#00B7FF]/20">
-            <h2 className="text-xl font-bold text-[#00B7FF] mb-3">
-              Table of Contents
-            </h2>
+            <h2 className="text-xl font-bold text-[#00B7FF] mb-3">Table of Contents</h2>
             <ul className="space-y-2">
               {toc.map((item, idx) => (
                 <li key={`${item.id}-${idx}`} className="ml-2">
-                  <a
-                    href={`#${item.id}`}
-                    className="text-gray-300 hover:text-[#00B7FF] transition"
-                  >
+                  <a href={`#${item.id}`} className="text-gray-300 hover:text-[#00B7FF] transition">
                     {"— ".repeat(item.level - 1)}
                     {item.text}
                   </a>
@@ -150,7 +147,6 @@ export default async function BlogSlugPage(props: any) {
           </aside>
         )}
 
-        {/* BLOG CONTENT */}
         <article
           className="
             prose prose-lg prose-invert max-w-none leading-relaxed
@@ -172,12 +168,7 @@ export default async function BlogSlugPage(props: any) {
           "
         >
           <div
-            className="
-              first-letter:text-6xl first-letter:font-bold
-              first-letter:text-[#00B7FF]
-              first-letter:float-left first-letter:pr-3
-              first-letter:leading-[0.8]
-            "
+            className="first-letter:text-6xl first-letter:font-bold first-letter:text-[#00B7FF] first-letter:float-left first-letter:pr-3 first-letter:leading-[0.8]"
             dangerouslySetInnerHTML={{ __html: htmlWithIds }}
           />
         </article>
