@@ -1,58 +1,57 @@
 // app/blog/page.tsx
+export const dynamic = "force-dynamic"; // 🔥 REQUIRED for runtime fetching
+
 import BlogListClient from "./BlogListClient";
 import React from "react";
 
 /* ============================================================================
-   FETCH BLOGS FROM API — HANDLES ALL PAYLOAD SHAPES
+   FETCH BLOGS FROM API — WITH NO ERROR FROM NEXT.JS 15
 ============================================================================ */
 async function fetchBlogsFromAPI(): Promise<any[]> {
   const base = process.env.NEXT_PUBLIC_API_URL;
+
   if (!base) {
     console.error("❌ NEXT_PUBLIC_API_URL is not set");
     return [];
   }
 
   try {
-    const res = await fetch(`${base}/api/blogs`, { cache: "no-store" });
-
-    console.log(
-      "📡 fetch /api/blogs status:",
-      res.status,
-      "content-type:",
-      res.headers.get("content-type")
-    );
+    // ❗ IMPORTANT: remove next:{revalidate:0} to avoid dynamic errors
+    const res = await fetch(`${base}/api/blogs`, {
+      cache: "no-store", // always dynamic
+    });
 
     if (!res.ok) {
-      const txt = await res.text().catch(() => "<failed-to-read-body>");
-      console.error("❌ server fetch blogs failed", res.status, txt);
+      const txt = await res.text().catch(() => "");
+      console.error("❌ Blog fetch failed:", res.status, txt);
       return [];
     }
 
+    // Safe JSON parse
     let payload: any;
     try {
       payload = await res.json();
     } catch (err) {
-      const text = await res.text().catch(() => "<failed-to-read-body>");
-      console.error("❌ JSON parse error from /api/blogs:", text, err);
+      console.error("❌ JSON parsing failed:", err);
       return [];
     }
 
-    // Accept many possible shapes
+    // Accept multiple formats
     if (Array.isArray(payload)) return payload;
-    if (Array.isArray(payload?.data)) return payload.data;
     if (Array.isArray(payload?.blogs)) return payload.blogs;
+    if (Array.isArray(payload?.data)) return payload.data;
     if (Array.isArray(payload?.items)) return payload.items;
 
-    // Single blog fallback
-    if (payload && typeof payload === "object" && (payload._id || payload.id)) {
-      return [payload];
+    if (payload && typeof payload === "object") {
+      // Single blog fallback
+      if (payload._id || payload.id) return [payload];
+
+      // Try to find an array inside object
+      const arr = Object.values(payload).find((v) => Array.isArray(v));
+      if (Array.isArray(arr)) return arr;
     }
 
-    // Try finding an array inside the object
-    const possibleArray = Object.values(payload).find((v) => Array.isArray(v));
-    if (Array.isArray(possibleArray)) return possibleArray;
-
-    console.warn("⚠️ Unexpected payload shape:", payload);
+    console.warn("⚠️ Unknown blogs payload:", payload);
     return [];
   } catch (err) {
     console.error("❌ fetch blogs exception:", err);
@@ -61,67 +60,40 @@ async function fetchBlogsFromAPI(): Promise<any[]> {
 }
 
 /* ============================================================================
-   MAIN PAGE — NORMALIZES ALL BLOGS
+   MAIN — NORMALIZE POSTS FOR BlogListClient
 ============================================================================ */
 export default async function Page() {
-  const rawPosts = await fetchBlogsFromAPI();
-  console.log("📌 RAW POSTS RECEIVED:", rawPosts);
+  const raw = await fetchBlogsFromAPI();
+  const list = Array.isArray(raw) ? raw : [];
 
-  const postsArray = Array.isArray(rawPosts) ? rawPosts : [];
-
-  /* ==========================================================================
-     NORMALIZATION — FIXES IMAGES, CONTENT, SLUG, DATES
-  ========================================================================== */
-  const posts = postsArray.map((p: any) => {
-    /* ----------------------------------------------------------------------
-       IMAGE NORMALIZATION — ALL LEGACY FORMATS SUPPORTED
-    ---------------------------------------------------------------------- */
+  const posts = list.map((p: any) => {
+    /* ----------------------------------------------
+       IMAGE NORMALIZATION (supports all legacy fields)
+    ---------------------------------------------- */
     let images: string[] = [];
 
-    if (Array.isArray(p.media?.images)) {
-      images = p.media.images;
-    }
-    // ❗ missing before — the reason thumbnails weren’t showing
-    else if (typeof p.media?.image === "string") {
-      images = [p.media.image];
-    }
-    else if (Array.isArray(p.media?.image)) {
-      images = p.media.image;
-    }
-    else if (Array.isArray(p.images)) {
-      images = p.images;
-    }
-    else if (typeof p.image === "string") {
-      images = [p.image];
-    }
-    else if (typeof p.img === "string") {
-      images = [p.img];
-    }
-    else if (typeof p.thumbnail === "string") {
-      images = [p.thumbnail];
-    }
-    else if (typeof p.featuredImage === "string") {
-      images = [p.featuredImage];
-    }
+    if (Array.isArray(p.media?.images)) images = p.media.images;
+    else if (typeof p.media?.image === "string") images = [p.media.image];
+    else if (Array.isArray(p.media?.image)) images = p.media.image;
+    else if (Array.isArray(p.images)) images = p.images;
+    else if (typeof p.image === "string") images = [p.image];
+    else if (typeof p.img === "string") images = [p.img];
+    else if (typeof p.thumbnail === "string") images = [p.thumbnail];
+    else if (typeof p.featuredImage === "string") images = [p.featuredImage];
 
-    /* ----------------------------------------------------------------------
-       VIDEOS NORMALIZATION
-    ---------------------------------------------------------------------- */
+    /* ----------------------------------------------
+       VIDEO NORMALIZATION
+    ---------------------------------------------- */
     let videos: string[] = [];
 
-    if (Array.isArray(p.media?.videos)) {
-      videos = p.media.videos;
-    } else if (Array.isArray(p.videos)) {
-      videos = p.videos;
-    } else if (typeof p.video === "string") {
-      videos = [p.video];
-    }
+    if (Array.isArray(p.media?.videos)) videos = p.media.videos;
+    else if (Array.isArray(p.videos)) videos = p.videos;
+    else if (typeof p.video === "string") videos = [p.video];
 
-    /* ----------------------------------------------------------------------
-       CONTENT NORMALIZATION — ENSURES HTML STRING
-    ---------------------------------------------------------------------- */
+    /* ----------------------------------------------
+       CONTENT NORMALIZATION
+    ---------------------------------------------- */
     let content = p.content || p.contentPreview || "";
-
     if (typeof content !== "string") {
       try {
         content = JSON.stringify(content);
@@ -130,11 +102,11 @@ export default async function Page() {
       }
     }
 
-    /* ----------------------------------------------------------------------
-       FINAL CLEAN POST OBJECT
-    ---------------------------------------------------------------------- */
+    /* ----------------------------------------------
+       FINAL CLEAN OBJECT
+    ---------------------------------------------- */
     return {
-      id: p._id ?? p.id ?? `${p.title ?? "untitled"}-${p.date ?? ""}`,
+      id: p._id ?? p.id ?? `${p.title}-${p.date ?? ""}`,
       slug: p.slug ?? p._id ?? p.id ?? "",
       title: p.title ?? "",
       content,
