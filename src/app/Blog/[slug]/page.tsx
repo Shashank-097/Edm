@@ -1,4 +1,3 @@
-// app/Blog/[slug]/page.tsx
 export const dynamic = "force-dynamic";
 
 import React from "react";
@@ -28,41 +27,36 @@ function calcReadingTime(html: string) {
 
 /* ---------------- Extract Headings ---------------- */
 function extractHeadings(html: string) {
-  const headingRegex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
+  const regex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
   const items: { level: number; text: string; id: string }[] = [];
   const used = new Map<string, number>();
-  let match;
+  let m;
 
-  while ((match = headingRegex.exec(html))) {
-    const level = Number(match[1]);
-    const raw = match[2].replace(/<[^>]+>/g, "");
-    let id = raw.toLowerCase().replace(/[^\w]+/g, "-") || "section";
+  while ((m = regex.exec(html))) {
+    const level = Number(m[1]);
+    const clean = m[2].replace(/<[^>]+>/g, "");
+    let id = clean.toLowerCase().replace(/[^\w]+/g, "-") || "section";
 
     const count = (used.get(id) || 0) + 1;
     used.set(id, count);
 
     if (count > 1) id = `${id}-${count}`;
 
-    items.push({ level, text: raw, id });
+    items.push({ level, text: clean, id });
   }
 
   return items;
 }
 
-/* ---------------- PAGE COMPONENT (CORRECT SIGNATURE) ---------------- */
-export default async function BlogSlugPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  // ⬇ THIS IS VALID NOW (param is NOT a Promise)
+/* ---------------- PAGE COMPONENT (NO TYPES — FIXES VERCEL) ---------------- */
+export default async function BlogSlugPage({ params }: any) {
   const { slug } = params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) return <div className="p-10 text-white">API URL Missing</div>;
 
-  const blogData = await fetchPostBySlug(base, slug);
-  const blog = Array.isArray(blogData) ? blogData[0] : blogData;
+  const postData = await fetchPostBySlug(base, slug);
+  const blog = Array.isArray(postData) ? postData[0] : postData;
 
   if (!blog) return <div className="p-10 text-white">Blog Not Found</div>;
 
@@ -94,6 +88,7 @@ export default async function BlogSlugPage({
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-white p-6">
       <div className="max-w-4xl mx-auto">
+        
         {/* TITLE */}
         <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">
           {blog.title}
@@ -106,9 +101,7 @@ export default async function BlogSlugPage({
               By <span className="text-[#00B7FF]">{blog.author}</span>
             </p>
           )}
-          {blog.date && (
-            <p>{new Date(blog.date).toLocaleDateString()}</p>
-          )}
+          {blog.date && <p>{new Date(blog.date).toLocaleDateString()}</p>}
           <p>⏱ {readingTime} min read</p>
         </div>
 
@@ -150,22 +143,24 @@ export default async function BlogSlugPage({
         {/* ARTICLE */}
         <article
           className="
-          prose prose-lg prose-invert max-w-none leading-relaxed
-          prose-headings:text-[#00B7FF]
-          prose-a:text-[#00B7FF]
-          prose-strong:text-[#00B7FF]
-          prose-em:text-[#00B7FF]
-          prose-mark:text-[#00B7FF] prose-mark:bg-[#00B7FF]/20
-          prose-li:marker:text-[#00B7FF]
-          prose-img:rounded-xl
-          prose-code:text-[#00B7FF]
-          prose-pre:bg-[#112136]
+            prose prose-lg prose-invert max-w-none leading-relaxed
+            prose-headings:text-[#00B7FF]
+            prose-a:text-[#00B7FF]
+            prose-strong:text-[#00B7FF]
+            prose-em:text-[#00B7FF]
+            prose-mark:text-[#00B7FF] prose-mark:bg-[#00B7FF]/20
+            prose-li:marker:text-[#00B7FF]
+            prose-img:rounded-xl
+            prose-code:text-[#00B7FF]
+            prose-pre:bg-[#112136]
           "
         >
           <div
             className="
-              first-letter:text-6xl first-letter:font-bold first-letter:text-[#00B7FF]
-              first-letter:float-left first-letter:pr-3 first-letter:leading-[0.8]
+              first-letter:text-6xl first-letter:font-bold
+              first-letter:text-[#00B7FF]
+              first-letter:float-left first-letter:pr-3
+              first-letter:leading-[0.8]
             "
             dangerouslySetInnerHTML={{ __html: htmlWithIds }}
           />
