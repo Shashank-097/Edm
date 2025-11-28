@@ -47,7 +47,7 @@ export default function AdminDashboard() {
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('');
 
-  // media as dataURLs for preview & sending
+  // media as URLs for preview & sending
   const [media, setMedia] = useState<Media>({ images: [], videos: [] });
 
   const [savedPosts, setSavedPosts] = useState<Post[]>([]);
@@ -63,21 +63,134 @@ export default function AdminDashboard() {
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
+  /* ---------------------- UPLOAD HELPER (moved here) ---------------------- */
+  async function uploadFileToServer(
+    file: File,
+    type: 'image' | 'video' = 'image'
+  ): Promise<{ url: string; publicId?: string; version?: number | string; resourceType?: string }> {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') || '' : '';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    const res = await fetch(`${API_URL}/api/uploads/file?type=${type}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: fd,
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error('Upload failed: ' + txt);
+    }
+
+    const body = await res.json();
+    return {
+      url: body.url as string,
+      publicId: body.public_id as string,
+      version: body.version as number | string,
+      resourceType: (body.resource_type as string) ?? type,
+    };
+  }
+
+  // Compress + resize an image File to fit under maxBytes (default 10MB).
+  async function compressImageFile(file: File, maxBytes = 10 * 1024 * 1024, maxWidth = 1600, maxHeight = 1600) {
+    // If file already small, return original
+    if (file.size <= maxBytes) return file;
+
+    // Create an ImageBitmap (fast) or fallback to HTMLImageElement
+    let bitmap: ImageBitmap;
+    try {
+      bitmap = await createImageBitmap(file);
+    } catch (err) {
+      // fallback (older browsers) — create a regular <img> to ensure decoding
+      await new Promise<void>((resolve, reject) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          URL.revokeObjectURL(img.src);
+          resolve();
+        };
+        img.onerror = (e) => {
+          URL.revokeObjectURL(img.src);
+          reject(e);
+        };
+        img.src = URL.createObjectURL(file);
+      });
+      // now try createImageBitmap again
+      bitmap = await createImageBitmap(file);
+    }
+
+    // compute target dimensions keeping aspect ratio
+    const ratio = Math.min(1, maxWidth / bitmap.width, maxHeight / bitmap.height);
+    const w = Math.round(bitmap.width * ratio);
+    const h = Math.round(bitmap.height * ratio);
+
+    // draw to canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+
+    // iterative quality reduction
+    let quality = 0.92; // start high
+    const MIN_QUALITY = 0.5;
+    const STEP = 0.07;
+
+    // helper to get blob
+    async function canvasToBlob(q: number) {
+      return await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', q)
+      );
+    }
+
+    let blob = await canvasToBlob(quality);
+    while (blob && blob.size > maxBytes && quality > MIN_QUALITY) {
+      quality = Math.max(MIN_QUALITY, quality - STEP);
+      blob = await canvasToBlob(quality);
+    }
+
+    // if still too big, try to reduce dimensions further
+    let currentMaxDim = Math.max(w, h);
+    while (blob && blob.size > maxBytes && currentMaxDim > 400) {
+      currentMaxDim = Math.round(currentMaxDim * 0.8);
+      const newRatio = Math.min(1, currentMaxDim / Math.max(bitmap.width, bitmap.height));
+      const nw = Math.round(bitmap.width * newRatio);
+      const nh = Math.round(bitmap.height * newRatio);
+      canvas.width = nw;
+      canvas.height = nh;
+      ctx.drawImage(bitmap, 0, 0, nw, nh);
+      // reset quality a bit
+      quality = Math.max(MIN_QUALITY, quality - 0.05);
+      blob = await canvasToBlob(quality);
+    }
+
+    if (!blob) {
+      // if conversion failed, fallback to original file
+      return file;
+    }
+
+    // convert Blob back to File (preserve name)
+    const newFile = new File([blob], file.name.replace(/\.(png|jpeg|jpg)$/i, '.jpg'), { type: 'image/jpeg' });
+    return newFile;
+  }
+
   /* ---------------------- Tiptap Editor ---------------------- */
   const editor = useEditor({
     extensions: [
       StarterKit,
       LinkExtension.configure({ openOnClick: true }),
-        ImageExtension,
-        TextAlign.configure({ types: ['heading', 'paragraph'] }),
-         Highlight,
-     
+      ImageExtension,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Highlight,
     ],
     content: '', // will set when editing or creating
     editorProps: {
       attributes: {
         class: 'outline-none prose prose-sm max-w-none focus:outline-none',
-          
       },
     },
     immediatelyRender: false,
@@ -89,32 +202,43 @@ export default function AdminDashboard() {
       try {
         const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
         const res = await fetch(`${API_URL}/api/blogs`);
-        if (!res.ok) throw new Error('Failed to fetch blogs');
+        if (!res.ok) throw new Error(`Failed to fetch blogs (status ${res.status})`);
 
-        const data: unknown = await res.json();
-        if (!Array.isArray(data)) return;
+        const payload: any = await res.json();
 
-        const normalized = data.map((p: Record<string, unknown>): Post => {
-          const mediaObj = p.media as Record<string, unknown> | undefined;
+        let list: any[] = [];
+        if (Array.isArray(payload)) {
+          list = payload;
+        } else if (Array.isArray(payload.data)) {
+          list = payload.data;
+        } else if (Array.isArray(payload.blogs)) {
+          list = payload.blogs;
+        } else if (payload && typeof payload === 'object' && (payload.id || payload._id)) {
+          list = [payload];
+        } else {
+          console.warn('Unexpected payload shape from /api/blogs:', payload);
+          list = [];
+        }
 
-          const images =
-            Array.isArray(mediaObj?.images)
-              ? (mediaObj?.images as string[])
-              : Array.isArray(p.images)
-              ? (p.images as string[])
-              : [];
+        const normalized = list.map((p: Record<string, any>): Post => {
+          const mediaObj = p.media && typeof p.media === 'object' ? p.media : undefined;
 
-          const videos =
-            Array.isArray(mediaObj?.videos)
-              ? (mediaObj?.videos as string[])
-              : Array.isArray(p.videos)
-              ? (p.videos as string[])
-              : [];
+          const images = Array.isArray(mediaObj?.images)
+            ? (mediaObj.images as string[])
+            : Array.isArray(p.images)
+            ? (p.images as string[])
+            : [];
+
+          const videos = Array.isArray(mediaObj?.videos)
+            ? (mediaObj.videos as string[])
+            : Array.isArray(p.videos)
+            ? (p.videos as string[])
+            : [];
 
           return {
-            _id: (p._id as string) || (p.id as string),
+            _id: (p._id as string) ?? (p.id as string) ?? '',
             title: (p.title as string) ?? '',
-            content: (p.content as string) ?? '',
+            content: (p.content as string) ?? (p.contentPreview as string) ?? '',
             author: (p.author as string) ?? '',
             date: (p.date as string) ?? '',
             category: (p.category as string) ?? '',
@@ -134,40 +258,68 @@ export default function AdminDashboard() {
   }, []);
 
   /* ---------------- Image/Video input handling for preview area (not editor) ---------------- */
-  const handleImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const TARGET_MAX_BYTES = 10 * 1024 * 1024; // Cloudinary account limit (10MB)
+  const MAX_CLIENT_MB = 20; // client-side hard limit
+  const MAX_CLIENT_BYTES = MAX_CLIENT_MB * 1024 * 1024;
+
+  const handleImagesChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
 
-    const readers = files.map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        })
-    );
+    try {
+      for (const file of files) {
+        if (file.size > MAX_CLIENT_BYTES) {
+          alert(`File "${file.name}" is too large. Max ${MAX_CLIENT_MB}MB allowed.`);
+          continue; // skip this file
+        }
 
-    Promise.all(readers).then((results) =>
-      setMedia((m) => ({ ...m, images: [...m.images, ...results] }))
-    );
+        let fileToUpload = file;
+
+        if (file.size > TARGET_MAX_BYTES) {
+          // compress to fit under Cloudinary account limit (10MB)
+          try {
+            fileToUpload = await compressImageFile(file, TARGET_MAX_BYTES, 1600, 1600);
+          } catch (err) {
+            console.warn('Compression failed, uploading original file', err);
+            fileToUpload = file;
+          }
+        }
+
+        const uploaded = await uploadFileToServer(fileToUpload, 'image');
+        // Use returned CDN url
+        setMedia((m) => ({ ...m, images: [...m.images, uploaded.url] }));
+      }
+    } catch (err) {
+      console.error('Image upload error', err);
+      alert('Image upload failed');
+    } finally {
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
   };
 
-  const handleVideosChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const MAX_VIDEO_MB = Number(process.env.NEXT_PUBLIC_MAX_VIDEO_MB || 200);
+  const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
+
+  const handleVideosChange = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const files = Array.from(e.target.files);
 
-    const readers = files.map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        })
-    );
+    try {
+      for (const file of files) {
+        if (file.size > MAX_VIDEO_BYTES) {
+          alert(`Video "${file.name}" is too large. Max ${MAX_VIDEO_MB}MB allowed.`);
+          continue;
+        }
 
-    Promise.all(readers).then((results) =>
-      setMedia((m) => ({ ...m, videos: [...m.videos, ...results] }))
-    );
+        const uploaded = await uploadFileToServer(file, 'video');
+        setMedia((m) => ({ ...m, videos: [...m.videos, uploaded.url] }));
+      }
+    } catch (err) {
+      console.error('Video upload error', err);
+      alert('Video upload failed');
+    } finally {
+      if (videoInputRef.current) videoInputRef.current.value = '';
+    }
   };
 
   /* -------------- Insert image into Tiptap editor (from file input) -------------- */
@@ -175,7 +327,7 @@ export default function AdminDashboard() {
     if (!editor) return;
 
     if (!file) {
-      // fallback to data in media.images (select last)
+      // fallback to last image url in media.images
       const last = media.images[media.images.length - 1];
       if (last) {
         editor.chain().focus().setImage({ src: last }).run();
@@ -183,14 +335,17 @@ export default function AdminDashboard() {
       return;
     }
 
-    // convert file to base64 and insert
-    const dataUrl = await new Promise<string>((resolve) => {
-      const r = new FileReader();
-      r.onload = () => resolve(r.result as string);
-      r.readAsDataURL(file);
-    });
-
-    editor.chain().focus().setImage({ src: dataUrl }).run();
+    // Upload file (binary) to server -> Cloudinary and insert returned URL
+    try {
+      // compress if needed
+      const fileToUpload = file.size > TARGET_MAX_BYTES ? await compressImageFile(file, TARGET_MAX_BYTES, 1600, 1600) : file;
+      const uploaded = await uploadFileToServer(fileToUpload, 'image');
+      editor.chain().focus().setImage({ src: uploaded.url }).run();
+      setMedia((m) => ({ ...m, images: [...m.images, uploaded.url] }));
+    } catch (err) {
+      console.error('Insert image upload failed', err);
+      alert('Failed to upload image');
+    }
   };
 
   /* ----------------------- Save blog (POST) ----------------------- */
@@ -199,13 +354,33 @@ export default function AdminDashboard() {
       if (!editor) return alert('Editor not ready');
 
       const html = editor.getHTML(); // HTML content from Tiptap
+
+      // Ensure all images are URLs; if any data URI remains, upload it
+      const finalImages: string[] = [];
+      for (const img of media.images) {
+        if (typeof img === 'string' && img.startsWith('http')) {
+          finalImages.push(img);
+        } else if (typeof img === 'string' && img.startsWith('data:')) {
+          // Convert data URI to blob and upload
+          try {
+            const res = await fetch(img);
+            const blob = await res.blob();
+            const file = new File([blob], 'upload.png', { type: blob.type });
+            const uploaded = await uploadFileToServer(file, 'image');
+            finalImages.push(uploaded.url);
+          } catch (e) {
+            console.error('Failed to convert/upload data URI image', e);
+          }
+        }
+      }
+
       const blogData = {
         title,
         content: html,
         author,
         date: date || new Date().toISOString(),
         category,
-        images: media.images,
+        images: finalImages,
         videos: media.videos,
       };
 
@@ -231,11 +406,11 @@ export default function AdminDashboard() {
           date: (data.date as string) ?? (date || new Date().toISOString()),
 
           category: (data.category as string) ?? category,
-          images: Array.isArray(data.images) ? data.images : media.images,
-          videos: Array.isArray(data.videos) ? data.videos : media.videos,
+          images: Array.isArray(data.images) ? (data.images as string[]) : finalImages,
+          videos: Array.isArray(data.videos) ? (data.videos as string[]) : media.videos,
           media: {
-            images: Array.isArray(data.images) ? data.images : media.images,
-            videos: Array.isArray(data.videos) ? data.videos : media.videos,
+            images: Array.isArray(data.images) ? (data.images as string[]) : finalImages,
+            videos: Array.isArray(data.videos) ? (data.videos as string[]) : media.videos,
           },
         };
 
@@ -543,29 +718,38 @@ export default function AdminDashboard() {
 
                       {/* Insert image to editor: open file input */}
                       <button
-                        type="button"
-                        onClick={() => {
-                          const input = document.createElement('input');
-                          input.type = 'file';
-                          input.accept = 'image/*';
-                          input.onchange = async (ev: any) => {
-                            const f = ev.target.files?.[0];
-                            if (!f) return;
-                            const dataUrl = await new Promise<string>((resolve) => {
-                              const r = new FileReader();
-                              r.onload = () => resolve(r.result as string);
-                              r.readAsDataURL(f);
-                            });
-                            // Insert into editor and also keep in media for post-level images
-                            editor?.chain().focus().setImage({ src: dataUrl }).run();
-                            setMedia((m) => ({ ...m, images: [...m.images, dataUrl] }));
-                          };
-                          input.click();
-                        }}
-                        className="px-3 py-1 rounded bg-gray-100"
-                      >
-                        Insert Image
-                      </button>
+  type="button"
+  onClick={() => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+
+    input.onchange = async (ev: any) => {
+      const f: File | undefined = ev.target.files?.[0];
+      if (!f) return;
+
+      try {
+        // Upload file to your backend -> Cloudinary
+        const fileToUpload = f.size > TARGET_MAX_BYTES ? await compressImageFile(f, TARGET_MAX_BYTES, 1600, 1600) : f;
+        const uploaded = await uploadFileToServer(fileToUpload, 'image');
+
+        // Insert Cloudinary URL into the editor
+        editor?.chain().focus().setImage({ src: uploaded.url }).run();
+
+        // Store it in post-level images as well
+        setMedia((m) => ({ ...m, images: [...m.images, uploaded.url] }));
+      } catch (err) {
+        console.error("Inline image upload failed", err);
+        alert("Failed to upload image");
+      }
+    };
+
+    input.click();
+  }}
+  className="px-3 py-1 rounded bg-gray-100"
+>
+  Insert Image
+</button>
 
                       {/* Insert link */}
                       <button
@@ -605,11 +789,11 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block font-medium mb-2">Images (post-level)</label>
                   <div className="flex flex-wrap gap-3 p-3 border-2 border-dashed rounded-lg">
-                    {media.images.map((img, i) => (
-                      <div key={i} className="relative w-28 h-28 rounded-lg overflow-hidden shadow-sm">
-                        <Image src={img} alt={`img-${i}`} fill className="object-cover" unoptimized />
+                    {media.images.map((img) => (
+                      <div key={img} className="relative w-28 h-28 rounded-lg overflow-hidden shadow-sm">
+                        <Image src={img} alt={`img-preview`} fill className="object-cover" unoptimized />
                         <button
-                          onClick={() => setMedia((m) => ({ ...m, images: m.images.filter((_, idx) => idx !== i) }))}
+                          onClick={() => setMedia((m) => ({ ...m, images: m.images.filter((x) => x !== img) }))}
                           className="absolute top-1 right-1 bg-red-600 text-white px-1 rounded-lg"
                         >
                           ×
@@ -628,10 +812,10 @@ export default function AdminDashboard() {
                 <div>
                   <label className="block font-medium mb-2">Videos (post-level)</label>
                   <div className="flex flex-wrap gap-3 p-3 border-2 border-dashed rounded-lg">
-                    {media.videos.map((vid, i) => (
-                      <div key={i} className="relative w-40 h-24 rounded-lg overflow-hidden shadow-sm">
-                        <video src={vid} className="w-full h-full object-cover" />
-                        <button onClick={() => setMedia((m) => ({ ...m, videos: m.videos.filter((_, idx) => idx !== i) }))} className="absolute top-1 right-1 bg-red-600 text-white px-1 rounded-lg">
+                    {media.videos.map((vid) => (
+                      <div key={vid} className="relative w-40 h-24 rounded-lg overflow-hidden shadow-sm">
+                        <video src={vid} controls className="w-full h-full object-cover" />
+                        <button onClick={() => setMedia((m) => ({ ...m, videos: m.videos.filter((x) => x !== vid) }))} className="absolute top-1 right-1 bg-red-600 text-white px-1 rounded-lg">
                           ×
                         </button>
                       </div>
@@ -685,7 +869,7 @@ export default function AdminDashboard() {
                     const isExpanded = expandedPostIdx === idx;
 
                     return (
-                      <motion.div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-md border">
+                      <motion.div key={post._id ?? idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-md border">
                         <h3 className="text-xl font-semibold">{post.title}</h3>
                         <p className="text-sm text-gray-600 dark:text-gray-300">By {post.author}</p>
                         <p className="text-sm text-gray-600 dark:text-gray-300">Category: {post.category}</p>
@@ -693,16 +877,16 @@ export default function AdminDashboard() {
 
                         <div className="flex flex-wrap gap-2 my-3">
                           {(post.media?.images ?? []).map(
-                            (img, i) =>
+                            (img) =>
                               img && (
-                                <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden shadow-sm">
+                                <div key={img} className="relative w-24 h-24 rounded-lg overflow-hidden shadow-sm">
                                   <Image src={img} alt="preview" fill className="object-cover" unoptimized />
                                 </div>
                               )
                           )}
 
-                          {(post.media?.videos ?? []).map((vid, i) => (
-                            <video key={i} src={vid} controls className="w-full max-h-40 rounded-lg" />
+                          {(post.media?.videos ?? []).map((vid) => (
+                            <video key={vid} src={vid} controls className="w-full max-h-40 rounded-lg" />
                           ))}
                         </div>
 

@@ -1,4 +1,3 @@
-
 // app/blog/CategoryButtons.client.tsx
 'use client';
 import { motion } from 'framer-motion';
