@@ -3,8 +3,6 @@ import React from "react";
 import Image from "next/image";
 import DOMPurify from "isomorphic-dompurify";
 
-type Props = { params: { slug: string } };
-
 /* ---------------- FETCH ONE BLOG ---------------- */
 async function fetchPostBySlug(base: string, slug: string) {
   try {
@@ -54,16 +52,16 @@ function extractHeadings(html: string) {
   return items;
 }
 
-/* ---------------- PAGE COMPONENT ---------------- */
-export default async function BlogSlugPage({ params }: Props) {
-  const { slug } = params;
-  const base = process.env.NEXT_PUBLIC_API_URL;
+/* ---------------- PAGE COMPONENT (FIXED FOR NEXT.JS 15) ---------------- */
+export default async function BlogSlugPage(props: any) {
+  const { slug } = await props.params; // ✅ FIX HERE
 
+  const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) {
     return <div className="p-10 text-white">API URL Missing</div>;
   }
 
-  let blogData = await fetchPostBySlug(base, slug);
+  const blogData = await fetchPostBySlug(base, slug);
   const blog = Array.isArray(blogData) ? blogData[0] : blogData;
 
   if (!blog) {
@@ -80,9 +78,11 @@ export default async function BlogSlugPage({ params }: Props) {
   const htmlWithIds = sanitizedHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
     (full, lvl, rest, inner) => {
-      let baseId = inner.replace(/<[^>]+>/g, "")
-        .toLowerCase()
-        .replace(/[^\w]+/g, "-") || "section";
+      let baseId =
+        inner
+          .replace(/<[^>]+>/g, "")
+          .toLowerCase()
+          .replace(/[^\w]+/g, "-") || "section";
 
       const count = headingIdMap.get(baseId) || 0;
       const newCount = count + 1;
@@ -99,7 +99,9 @@ export default async function BlogSlugPage({ params }: Props) {
       <div className="max-w-4xl mx-auto">
 
         {/* TITLE */}
-        <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">{blog.title}</h1>
+        <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">
+          {blog.title}
+        </h1>
 
         {/* META INFO */}
         <div className="flex items-center gap-6 text-gray-400 mb-4">
@@ -108,7 +110,9 @@ export default async function BlogSlugPage({ params }: Props) {
               By <span className="text-[#00B7FF]">{blog.author}</span>
             </p>
           )}
-          {blog.date && <p>{new Date(blog.date).toLocaleDateString()}</p>}
+          {blog.date && (
+            <p>{new Date(blog.date).toLocaleDateString()}</p>
+          )}
           <p>⏱ {readingTime} min read</p>
         </div>
 
@@ -127,7 +131,9 @@ export default async function BlogSlugPage({ params }: Props) {
         {/* TABLE OF CONTENTS */}
         {toc.length > 0 && (
           <aside className="mb-10 p-5 rounded-xl bg-[#112136]/40 border border-[#00B7FF]/20">
-            <h2 className="text-xl font-bold text-[#00B7FF] mb-3">Table of Contents</h2>
+            <h2 className="text-xl font-bold text-[#00B7FF] mb-3">
+              Table of Contents
+            </h2>
             <ul className="space-y-2">
               {toc.map((item, idx) => (
                 <li key={`${item.id}-${idx}`} className="ml-2">
@@ -148,21 +154,17 @@ export default async function BlogSlugPage({ params }: Props) {
         <article
           className="
             prose prose-lg prose-invert max-w-none leading-relaxed
-
             prose-headings:text-[#00B7FF]
             prose-a:text-[#00B7FF] hover:prose-a:underline
             prose-strong:text-[#00B7FF]
-            prose-em:text-[#00B7FF]
-            prose-em:italic
+            prose-em:text-[#00B7FF] prose-em:italic
             prose-mark:text-[#00B7FF] prose-mark:bg-[#00B7FF]/20
             prose-li:marker:text-[#00B7FF]
             prose-img:rounded-xl prose-img:shadow-lg
-
             prose-blockquote:border-l-4
             prose-blockquote:border-[#00B7FF]
             prose-blockquote:text-gray-300
             prose-blockquote:pl-6
-
             prose-code:text-[#00B7FF]
             prose-pre:bg-[#112136]
             prose-pre:text-gray-200
