@@ -54,7 +54,7 @@ function extractHeadings(html: string) {
 
 /* ---------------- PAGE COMPONENT (FIXED FOR NEXT.JS 15) ---------------- */
 export default async function BlogSlugPage(props: any) {
-  const { slug } = await props.params; // ✅ FIX HERE
+  const { slug } =  props.params; // ✅ FIX HERE
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base) {
