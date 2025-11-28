@@ -1,4 +1,5 @@
-export const dynamic = "force-dynamic";
+// app/Blog/[slug]/page.tsx
+export const dynamic = "force-dynamic"; // ⬅ required because fetch is dynamic
 
 import React from "react";
 import Image from "next/image";
@@ -10,10 +11,10 @@ async function fetchPostBySlug(base: string, slug: string) {
     const res = await fetch(`${base}/api/blogs/${encodeURIComponent(slug)}`, {
       cache: "no-store",
     });
-
     if (!res.ok) return null;
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error("❌ Blog fetch failed:", err);
     return null;
   }
 }
@@ -27,54 +28,69 @@ function calcReadingTime(html: string) {
 
 /* ---------------- Extract Headings ---------------- */
 function extractHeadings(html: string) {
-  const regex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
   const items: { level: number; text: string; id: string }[] = [];
   const used = new Map<string, number>();
-  let m;
+  let match: RegExpExecArray | null;
 
-  while ((m = regex.exec(html))) {
-    const level = Number(m[1]);
-    const clean = m[2].replace(/<[^>]+>/g, "");
-    let id = clean.toLowerCase().replace(/[^\w]+/g, "-") || "section";
+  const headingRegex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
+
+  while ((match = headingRegex.exec(html))) {
+    const level = Number(match[1]);
+    const rawText = match[2].replace(/<[^>]+>/g, "");
+    let id = rawText.toLowerCase().replace(/[^\w]+/g, "-") || "section";
 
     const count = (used.get(id) || 0) + 1;
     used.set(id, count);
 
     if (count > 1) id = `${id}-${count}`;
 
-    items.push({ level, text: clean, id });
+    items.push({ level, text: rawText, id });
   }
 
   return items;
 }
 
-/* ---------------- PAGE COMPONENT (NO TYPES — FIXES VERCEL) ---------------- */
-export default async function BlogSlugPage({ params }: any) {
-  const { slug } = params;
+/* ---------------- PAGE COMPONENT ---------------- */
+export default async function BlogSlugPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const slug = params.slug; // ⬅ VALID — not a Promise
 
   const base = process.env.NEXT_PUBLIC_API_URL;
-  if (!base) return <div className="p-10 text-white">API URL Missing</div>;
+  if (!base)
+    return <div className="p-10 text-white">API URL Missing</div>;
 
-  const postData = await fetchPostBySlug(base, slug);
-  const blog = Array.isArray(postData) ? postData[0] : postData;
+  const blogData = await fetchPostBySlug(base, slug);
+  const blog = Array.isArray(blogData) ? blogData[0] : blogData;
 
-  if (!blog) return <div className="p-10 text-white">Blog Not Found</div>;
+  if (!blog)
+    return <div className="p-10 text-white">Blog Not Found</div>;
 
   const images = blog.media?.images ?? blog.images ?? [];
 
-  const sanitized = DOMPurify.sanitize(blog.content || "");
-  const toc = extractHeadings(sanitized);
-  const readingTime = calcReadingTime(sanitized);
+  const sanitizedHTML = DOMPurify.sanitize(blog.content || "");
 
-  // inject unique IDs
+  const toc = extractHeadings(sanitizedHTML);
+  const readingTime = calcReadingTime(sanitizedHTML);
+
+  /* ---- Inject unique heading IDs ---- */
   const idMap = new Map<string, number>();
-  const htmlWithIds = sanitized.replace(
+
+  const htmlWithIds = sanitizedHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
-    (full, lvl, rest, inner) => {
-      let baseId = inner
-        .replace(/<[^>]+>/g, "")
-        .toLowerCase()
-        .replace(/[^\w]+/g, "-") || "section";
+    (
+      full: string,
+      lvl: string,
+      rest: string,
+      inner: string
+    ) => {
+      let baseId =
+        inner
+          .replace(/<[^>]+>/g, "")
+          .toLowerCase()
+          .replace(/[^\w]+>/g, "-") || "section";
 
       const count = (idMap.get(baseId) || 0) + 1;
       idMap.set(baseId, count);
@@ -88,7 +104,6 @@ export default async function BlogSlugPage({ params }: any) {
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-white p-6">
       <div className="max-w-4xl mx-auto">
-        
         {/* TITLE */}
         <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">
           {blog.title}
@@ -101,7 +116,9 @@ export default async function BlogSlugPage({ params }: any) {
               By <span className="text-[#00B7FF]">{blog.author}</span>
             </p>
           )}
-          {blog.date && <p>{new Date(blog.date).toLocaleDateString()}</p>}
+          {blog.date && (
+            <p>{new Date(blog.date).toLocaleDateString()}</p>
+          )}
           <p>⏱ {readingTime} min read</p>
         </div>
 
@@ -123,7 +140,6 @@ export default async function BlogSlugPage({ params }: any) {
             <h2 className="text-xl font-bold text-[#00B7FF] mb-3">
               Table of Contents
             </h2>
-
             <ul className="space-y-2">
               {toc.map((item, i) => (
                 <li key={`${item.id}-${i}`} className="ml-2">
@@ -141,29 +157,8 @@ export default async function BlogSlugPage({ params }: any) {
         )}
 
         {/* ARTICLE */}
-        <article
-          className="
-            prose prose-lg prose-invert max-w-none leading-relaxed
-            prose-headings:text-[#00B7FF]
-            prose-a:text-[#00B7FF]
-            prose-strong:text-[#00B7FF]
-            prose-em:text-[#00B7FF]
-            prose-mark:text-[#00B7FF] prose-mark:bg-[#00B7FF]/20
-            prose-li:marker:text-[#00B7FF]
-            prose-img:rounded-xl
-            prose-code:text-[#00B7FF]
-            prose-pre:bg-[#112136]
-          "
-        >
-          <div
-            className="
-              first-letter:text-6xl first-letter:font-bold
-              first-letter:text-[#00B7FF]
-              first-letter:float-left first-letter:pr-3
-              first-letter:leading-[0.8]
-            "
-            dangerouslySetInnerHTML={{ __html: htmlWithIds }}
-          />
+        <article className="prose prose-lg prose-invert max-w-none leading-relaxed prose-headings:text-[#00B7FF]">
+          <div dangerouslySetInnerHTML={{ __html: htmlWithIds }} />
         </article>
       </div>
     </main>
