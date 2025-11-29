@@ -1,4 +1,3 @@
-// app/blog/BlogListClient.tsx
 'use client';
 
 import React, { useState } from 'react';
@@ -11,15 +10,15 @@ const MAX_WORDS = 50;
 const POSTS_PER_SLIDE = 6;
 
 /* --------------------------------------------------------------------------
-   TIPTAP-SAFE HTML → PLAIN TEXT EXTRACTOR (works for ALL real blog content)
+   TIPTAP-SAFE HTML → PLAIN TEXT EXTRACTOR
 -------------------------------------------------------------------------- */
 function extractPlainText(html: string): string {
   if (!html) return "";
 
   return html
     .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, "\n") 
-    .replace(/<li[^>]*>/gi, "- ")             
+    .replace(/<\/(p|div|h[1-6]|li|blockquote)>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
     .replace(/<\/?(span|strong|em|b|i|u|mark|code)[^>]*>/gi, "")
     .replace(/<a [^>]*>(.*?)<\/a>/gi, "$1")
     .replace(/<[^>]+>/g, " ")
@@ -38,7 +37,7 @@ function getPreview(html: string, maxWords: number) {
 }
 
 /* --------------------------------------------------------------------------
-   FIXED DATE FORMAT (safe for SSR + client, no hydration mismatches)
+   FIXED DATE FORMAT
 -------------------------------------------------------------------------- */
 function formatDate(dateStr?: string) {
   if (!dateStr) return '';
@@ -57,17 +56,12 @@ function formatDate(dateStr?: string) {
 export default function BlogListClient({ posts: initialPosts }: { posts: any[] }) {
   const [posts] = useState(initialPosts ?? []);
 
-  // Category UI state
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [showAllCategories, setShowAllCategories] = useState(false);
 
-  // Slides
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState(0);
 
-  /* --------------------------------------------------------------------------
-     Filter + sort by category
-  -------------------------------------------------------------------------- */
   const visiblePosts =
     selectedCategory === "All"
       ? posts.slice().sort((a, b) => new Date(b.date ?? "").getTime() - new Date(a.date ?? "").getTime())
@@ -83,9 +77,6 @@ export default function BlogListClient({ posts: initialPosts }: { posts: any[] }
     (currentSlide + 1) * POSTS_PER_SLIDE
   );
 
-  /* --------------------------------------------------------------------------
-     Slide Navigation
-  -------------------------------------------------------------------------- */
   const goToSlide = (slide: number) => {
     setDirection(slide > currentSlide ? 1 : -1);
     setCurrentSlide(slide);
@@ -109,7 +100,7 @@ export default function BlogListClient({ posts: initialPosts }: { posts: any[] }
     <main className="min-h-screen bg-[#0A0F1C] p-6 text-white relative">
       <div className="max-w-6xl mx-auto">
 
-        {/* PAGE TITLE */}
+        {/* TITLE */}
         <h1 className="text-4xl sm:text-5xl font-extrabold text-center mb-6">The Beacon</h1>
 
         {/* CATEGORY FILTER */}
@@ -141,7 +132,6 @@ export default function BlogListClient({ posts: initialPosts }: { posts: any[] }
                 currentPosts.map((post: any, idx: number) => {
                   const images = post.media?.images ?? post.images ?? [];
                   const slug = post.slug ?? post._id ?? post.id ?? null;
-
                   const preview = getPreview(post.content, MAX_WORDS);
 
                   return (
@@ -190,17 +180,17 @@ export default function BlogListClient({ posts: initialPosts }: { posts: any[] }
                             {post.category ?? "Uncategorized"}
                           </span>
 
-                          {/* PREVIEW TEXT (now ALWAYS shows) */}
+                          {/* PREVIEW */}
                           {preview && (
                             <p className="text-gray-200 whitespace-pre-wrap">
                               {preview}
                             </p>
                           )}
 
-                          {/* READ MORE BUTTON */}
+                          {/* READ MORE (FIXED) */}
                           {slug && (
                             <Link
-                              href={`/Blog/${encodeURIComponent(String(slug))}`}
+                              href={`/blog/${encodeURIComponent(String(slug))}`}
                               className="mt-3 inline-block text-sm font-semibold 
                                 text-[#00B7FF] hover:underline relative z-20"
                             >
@@ -210,10 +200,10 @@ export default function BlogListClient({ posts: initialPosts }: { posts: any[] }
                         </div>
                       </div>
 
-                      {/* FULL CARD CLICK */}
+                      {/* FULL-CARD CLICK (FIXED) */}
                       {slug && (
                         <Link
-                          href={`/Blog/${encodeURIComponent(String(slug))}`}
+                          href={`/blog/${encodeURIComponent(String(slug))}`}
                           className="absolute inset-0 z-10"
                         />
                       )}
