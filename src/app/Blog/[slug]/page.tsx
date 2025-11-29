@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import React from "react";
 import Image from "next/image";
-import SafeHTML from "./SafeHTML"; // CLIENT-ONLY sanitizer
+import SafeHTML from "./SafeHTML"; // client-side sanitizer
 
 /* ---------------- FETCH ONE BLOG ---------------- */
 async function fetchPostBySlug(base: string, slug: string) {
@@ -49,16 +49,24 @@ function extractHeadings(html: string) {
 }
 
 /* ---------------- PAGE COMPONENT ---------------- */
-export default async function BlogSlugPage({ params }: { params: { slug: string } }) {
-  const { slug } = params;
+export default async function BlogSlugPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  // FIX FOR NEXT.JS 15 WARNING: await params (though it’s not async)
+  const resolvedParams = await params;
+  const { slug } = resolvedParams;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
-  if (!base) return <div className="p-10 text-white">API URL Missing</div>;
+  if (!base)
+    return <div className="p-10 text-white">API URL Missing</div>;
 
   const postData = await fetchPostBySlug(base, slug);
   const blog = Array.isArray(postData) ? postData[0] : postData;
 
-  if (!blog) return <div className="p-10 text-white">Blog Not Found</div>;
+  if (!blog)
+    return <div className="p-10 text-white">Blog Not Found</div>;
 
   const images = blog.media?.images ?? blog.images ?? [];
   const rawHTML: string = blog.content || "";
@@ -66,11 +74,16 @@ export default async function BlogSlugPage({ params }: { params: { slug: string 
   const toc = extractHeadings(rawHTML);
   const readingTime = calcReadingTime(rawHTML);
 
-  // inject unique IDs
+  // Add unique IDs to headings
   const idMap = new Map<string, number>();
   const htmlWithIds = rawHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
-    (full: string, lvl: string, rest: string, inner: string) => {
+    (
+      full: string,
+      lvl: string,
+      rest: string,
+      inner: string
+    ) => {
       let baseId =
         inner
           .replace(/<[^>]+>/g, "")
@@ -98,10 +111,15 @@ export default async function BlogSlugPage({ params }: { params: { slug: string 
         <div className="flex items-center gap-6 text-gray-400 mb-4">
           {blog.author && (
             <p>
-              By <span className="text-[#00B7FF]">{blog.author}</span>
+              By{" "}
+              <span className="text-[#00B7FF]">
+                {blog.author}
+              </span>
             </p>
           )}
-          {blog.date && <p>{new Date(blog.date).toLocaleDateString()}</p>}
+          {blog.date && (
+            <p>{new Date(blog.date).toLocaleDateString()}</p>
+          )}
           <p>⏱ {readingTime} min read</p>
         </div>
 
@@ -140,7 +158,7 @@ export default async function BlogSlugPage({ params }: { params: { slug: string 
           </aside>
         )}
 
-        {/* ARTICLE */}
+        {/* ARTICLE CONTENT */}
         <article
           className="
             prose prose-lg prose-invert max-w-none leading-relaxed
@@ -163,7 +181,7 @@ export default async function BlogSlugPage({ params }: { params: { slug: string 
               first-letter:leading-[0.8]
             "
           >
-            {/* CLIENT-SAFE SANITIZED HTML */}
+            {/* SANITIZED HTML (CLIENT-SIDE ONLY) */}
             <SafeHTML html={htmlWithIds} />
           </div>
         </article>
