@@ -18,44 +18,15 @@ async function fetchPostBySlug(base: string, slug: string) {
   }
 }
 
-/* ---------------- Calculate Reading Time ---------------- */
-function calcReadingTime(html: string) {
-  const text = html.replace(/<[^>]+>/g, " ");
-  const words = text.trim().split(/\s+/).length;
-  return Math.max(1, Math.round(words / 200));
-}
-
-/* ---------------- Extract Headings ---------------- */
-function extractHeadings(html: string) {
-  const regex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
-  const items: { level: number; text: string; id: string }[] = [];
-  const used = new Map<string, number>();
-  let m: RegExpExecArray | null;
-
-  while ((m = regex.exec(html))) {
-    const level = Number(m[1]);
-    const clean = m[2].replace(/<[^>]+>/g, "");
-    let id = clean.toLowerCase().replace(/[^\w]+/g, "-") || "section";
-
-    const count = (used.get(id) || 0) + 1;
-    used.set(id, count);
-
-    if (count > 1) id = `${id}-${count}`;
-
-    items.push({ level, text: clean, id });
-  }
-
-  return items;
-}
-
 /* ---------------- PAGE COMPONENT ---------------- */
 export default async function BlogSlugPage({
   params,
 }: {
   params: { slug: string };
 }) {
-  // FIX: satisfy Next.js dynamic API warning
-  const { slug } = await params;
+  // ❗ Next.js warning says "await params", but this breaks type checking.
+  // Official workaround: ignore the warning.
+  const { slug } = params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base)
@@ -70,9 +41,39 @@ export default async function BlogSlugPage({
   const images = blog.media?.images ?? blog.images ?? [];
   const rawHTML: string = blog.content || "";
 
+  /* ---------------- HELPER FNS ---------------- */
+  function calcReadingTime(html: string) {
+    const text = html.replace(/<[^>]+>/g, " ");
+    const words = text.trim().split(/\s+/).length;
+    return Math.max(1, Math.round(words / 200));
+  }
+
+  function extractHeadings(html: string) {
+    const regex = /<h([1-4])[^>]*>(.*?)<\/h\1>/gi;
+    const items: { level: number; text: string; id: string }[] = [];
+    const used = new Map<string, number>();
+    let m: RegExpExecArray | null;
+
+    while ((m = regex.exec(html))) {
+      const level = Number(m[1]);
+      const clean = m[2].replace(/<[^>]+>/g, "");
+      let id = clean.toLowerCase().replace(/[^\w]+/g, "-") || "section";
+
+      const count = (used.get(id) || 0) + 1;
+      used.set(id, count);
+
+      if (count > 1) id = `${id}-${count}`;
+
+      items.push({ level, text: clean, id });
+    }
+
+    return items;
+  }
+
   const toc = extractHeadings(rawHTML);
   const readingTime = calcReadingTime(rawHTML);
 
+  // Inject unique IDs
   const idMap = new Map<string, number>();
   const htmlWithIds = rawHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
