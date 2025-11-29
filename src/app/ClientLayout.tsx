@@ -14,7 +14,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     { name: "Home", href: "/" },
     { name: "About", href: "/about" },
     { name: "Services", href: "/services" },
-    { name: "Blogs", href: "/Blog" },  // changed "Blog" to lowercase path to follow URL conventions
+    { name: "Blogs", href: "/blog" },  // changed "Blog" to lowercase path to follow URL conventions
     { name: "Contact", href: "/contact" },
   ];
 
