@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import React from "react";
 import Image from "next/image";
-import SafeHTML from "./SafeHTML"; // client-side sanitizer
+import SafeHTML from "./SafeHTML";
 
 /* ---------------- FETCH ONE BLOG ---------------- */
 async function fetchPostBySlug(base: string, slug: string) {
@@ -54,9 +54,8 @@ export default async function BlogSlugPage({
 }: {
   params: { slug: string };
 }) {
-  // FIX FOR NEXT.JS 15 WARNING: await params (though it’s not async)
-  const resolvedParams = await params;
-  const { slug } = resolvedParams;
+  // FIX: satisfy Next.js dynamic API warning
+  const { slug } = await params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base)
@@ -74,7 +73,6 @@ export default async function BlogSlugPage({
   const toc = extractHeadings(rawHTML);
   const readingTime = calcReadingTime(rawHTML);
 
-  // Add unique IDs to headings
   const idMap = new Map<string, number>();
   const htmlWithIds = rawHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
@@ -102,19 +100,16 @@ export default async function BlogSlugPage({
   return (
     <main className="min-h-screen bg-[#0A0F1C] text-white p-6">
       <div className="max-w-4xl mx-auto">
-        {/* TITLE */}
+        
         <h1 className="text-4xl font-bold mb-2 text-[#00B7FF]">
           {blog.title}
         </h1>
 
-        {/* META */}
         <div className="flex items-center gap-6 text-gray-400 mb-4">
           {blog.author && (
             <p>
               By{" "}
-              <span className="text-[#00B7FF]">
-                {blog.author}
-              </span>
+              <span className="text-[#00B7FF]">{blog.author}</span>
             </p>
           )}
           {blog.date && (
@@ -123,7 +118,6 @@ export default async function BlogSlugPage({
           <p>⏱ {readingTime} min read</p>
         </div>
 
-        {/* COVER IMAGE */}
         {images.length > 0 && (
           <Image
             src={images[0]}
@@ -135,7 +129,6 @@ export default async function BlogSlugPage({
           />
         )}
 
-        {/* TOC */}
         {toc.length > 0 && (
           <aside className="mb-10 p-5 rounded-xl bg-[#112136]/40 border border-[#00B7FF]/20">
             <h2 className="text-xl font-bold text-[#00B7FF] mb-3">
@@ -158,7 +151,6 @@ export default async function BlogSlugPage({
           </aside>
         )}
 
-        {/* ARTICLE CONTENT */}
         <article
           className="
             prose prose-lg prose-invert max-w-none leading-relaxed
@@ -181,7 +173,6 @@ export default async function BlogSlugPage({
               first-letter:leading-[0.8]
             "
           >
-            {/* SANITIZED HTML (CLIENT-SIDE ONLY) */}
             <SafeHTML html={htmlWithIds} />
           </div>
         </article>
