@@ -24,8 +24,6 @@ export default async function BlogSlugPage({
 }: {
   params: { slug: string };
 }) {
-  // ❗ Next.js warning says "await params", but this breaks type checking.
-  // Official workaround: ignore the warning.
   const { slug } = params;
 
   const base = process.env.NEXT_PUBLIC_API_URL;
@@ -44,7 +42,7 @@ export default async function BlogSlugPage({
   /* ---------------- HELPER FNS ---------------- */
   function calcReadingTime(html: string) {
     const text = html.replace(/<[^>]+>/g, " ");
-    const words = text.trim().split(/\s+/).length;
+       const words = text.trim().split(/\s+/).length;
     return Math.max(1, Math.round(words / 200));
   }
 
