@@ -148,6 +148,8 @@ body {
   position: relative;
   z-index: 2;
   mix-blend-mode: screen;
+
+  overflow: visible !important; /* ⭐ FIX ADDED */
 }
 
 @keyframes shimmerFlow {
@@ -213,5 +215,82 @@ body {
   50% {
     transform: scale(1.2);
     opacity: 1;
+  }
+}
+/* ============================================================
+   ⚡ Mobile-Only Electric Neon Text
+   ============================================================ */
+@media (max-width: 768px) {
+  .neon-mobile-soft {
+    font-weight: 850 !important;
+    background-image: linear-gradient(
+      90deg,
+      #29e6ff,
+      #66faff,
+      #29e6ff
+    ) !important;
+
+    background-size: 260% 100%;
+    -webkit-background-clip: text !important;
+    -webkit-text-fill-color: transparent !important;
+
+    animation:
+      electricMobileWave 5s ease-in-out infinite,
+      electricMobilePulse 2.8s ease-in-out infinite;
+
+    /* Mobile-friendly neon glow */
+    text-shadow:
+      0 0 6px rgba(0, 200, 255, 0.55),
+      0 0 18px rgba(0, 160, 255, 0.45),
+      0 0 32px rgba(0, 230, 255, 0.35);
+  }
+
+  @keyframes electricMobileWave {
+    0%   { background-position: 0%; }
+    50%  { background-position: 100%; }
+    100% { background-position: 0%; }
+  }
+
+  @keyframes electricMobilePulse {
+    0% {
+      text-shadow:
+        0 0 6px rgba(0, 200, 255, 0.55),
+        0 0 12px rgba(0, 160, 255, 0.4);
+    }
+    50% {
+      text-shadow:
+        0 0 16px rgba(0, 240, 255, 1),
+        0 0 28px rgba(0, 180, 255, 0.55);
+    }
+    100% {
+      text-shadow:
+        0 0 6px rgba(0, 200, 255, 0.55),
+        0 0 12px rgba(0, 160, 255, 0.4);
+    }
+  }
+}
+
+/* ============================================================
+   📱 MOBILE FLOATING ICONS — ISOLATED & SAFE
+   ============================================================ */
+
+@media (max-width: 768px) {
+  .floating-icons-mobile-container {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1; /* SAFE for mobile */
+  }
+
+  .floating-icon-mobile {
+    position: absolute;
+    color: #29e6ff;
+    filter: drop-shadow(0 0 10px rgba(41,230,255,0.25));
+  }
+}
+
+@media (min-width: 769px) {
+  .floating-icons-mobile-container {
+    display: none !important; /* Desktop: fully disabled */
   }
 }
