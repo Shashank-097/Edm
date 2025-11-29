@@ -19,12 +19,10 @@ async function fetchPostBySlug(base: string, slug: string) {
 }
 
 /* ---------------- PAGE COMPONENT ---------------- */
-export default async function BlogSlugPage({
-  params,
-}: {
-  params: { slug: string };
-}) {
-  const { slug } = params;
+export default async function BlogSlugPage(
+  props: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await props.params;   // ✅ FIXED
 
   const base = process.env.NEXT_PUBLIC_API_URL;
   if (!base)
@@ -42,7 +40,7 @@ export default async function BlogSlugPage({
   /* ---------------- HELPER FNS ---------------- */
   function calcReadingTime(html: string) {
     const text = html.replace(/<[^>]+>/g, " ");
-       const words = text.trim().split(/\s+/).length;
+    const words = text.trim().split(/\s+/).length;
     return Math.max(1, Math.round(words / 200));
   }
 
@@ -75,12 +73,7 @@ export default async function BlogSlugPage({
   const idMap = new Map<string, number>();
   const htmlWithIds = rawHTML.replace(
     /<h([1-4])([^>]*)>(.*?)<\/h\1>/gi,
-    (
-      full: string,
-      lvl: string,
-      rest: string,
-      inner: string
-    ) => {
+    (full, lvl, rest, inner) => {
       let baseId =
         inner
           .replace(/<[^>]+>/g, "")
